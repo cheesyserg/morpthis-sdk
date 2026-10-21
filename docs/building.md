@@ -75,9 +75,10 @@ docker build \
   -t morpthis-sdk-toolchain toolchain/
 ```
 
-`toolchain/fetch.sh` downloads and unpacks it. No tarball is published yet; the
-player's `rockboxdev.sh` is the canonical way to produce one, and this SDK
-should host the release asset when the player cuts it.
+`toolchain/fetch.sh` downloads and unpacks it. The SDK's `device.yml` workflow
+attaches a `morpthis-toolchain.tar.xz` to a tagged release; until one exists,
+build the compiler with the player's `rockboxdev.sh` or let the device workflow
+cache it, as the apps repository's device job does.
 
 For CMake projects, `cmake/morpthis-toolchain.cmake` is the equivalent of
 `app.mk`'s device flags.
@@ -111,7 +112,6 @@ cache.
 
 On a tag, `device.yml` also packs the toolchain as
 `morpthis-toolchain.tar.xz` (root `bin/`, `lib/`, `mipsel-rockbox-linux-gnu/`)
-and attaches it to that release. Point the apps repository's
-`MORPTHIS_TOOLCHAIN_URL` secret at that asset so its device job does not have to
-rebuild the compiler. The Dockerfile and `fetch.sh` in `toolchain/` use the same
-layout.
+and attaches it to that release. That asset is what `toolchain/fetch.sh` and the
+Dockerfile consume; the apps repository's device job builds its own toolchain
+from the same scripts and caches it, so it does not need the tarball.
