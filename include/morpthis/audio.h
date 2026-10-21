@@ -2,20 +2,25 @@
 #define MORPTHIS_AUDIO_H
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// The player's playback.
+// The player's playback and the raw output.
 //
 // An app that never calls these leaves the player's audio alone: launching it
 // does not pause or stop what is playing. An app that wants the DAC takes it
 // over explicitly with morpthis_audio_play() and should release it by pausing
 // before quitting, unless the app is itself a player.
 //
-// There is no PCM access in API 1. An app that synthesises audio asks for it
-// when the player has a mixer to offer.
+// An app that writes its own samples takes the output with
+// morpthis_audio_open(). That stops playback and radio, and nothing else can
+// play until morpthis_audio_close(). Open, write and close from one thread: a
+// write blocks at the rate the DAC plays, so that thread is the app's mixer.
+// The device has no hardware mixer; the samples are what the DAC plays.
 
 #define MORPTHIS_TRACK_TITLE_MAX 128
 #define MORPTHIS_TRACK_ARTIST_MAX 96
@@ -47,6 +52,23 @@ bool morpthis_audio_prev(void);
 // 0..100.
 int morpthis_audio_volume(void);
 bool morpthis_audio_set_volume(int volume);
+
+// Raw PCM output.
+//
+// The stream is signed 16-bit, interleaved, native endianness. `channels` is 1
+// or 2 and `buffer_ms` is the latency to ask the DAC for (0 uses the player's
+// usual depth; a game wants 30-60). Stops playback and radio first. Returns
+// false when the output cannot be taken (no card, a call already active, or
+// the device is busy).
+bool morpthis_audio_open(int rate, int channels, int buffer_ms);
+
+// Writes `frames` frames, blocking until the device has room. Returns the
+// frames written; 0 when the output is not open or has failed.
+size_t morpthis_audio_write(const int16_t *pcm, size_t frames);
+
+// Releases the output. Playback does not resume by itself; the user starts it
+// again. Idempotent.
+void morpthis_audio_close(void);
 
 #ifdef __cplusplus
 }

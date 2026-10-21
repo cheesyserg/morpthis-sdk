@@ -70,6 +70,9 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 | `morpthis_widget_set_text/text` | Labels and buttons. |
 | `morpthis_widget_set_pos/size` | Absolute layout in pixels. |
 | `morpthis_widget_set_visible/enabled` | Disabled widgets do not fire. |
+| `morpthis_widget_set_rotation` | Image widgets, clockwise, around the centre. |
+| `morpthis_widget_set_opacity` | 0..100, the widget and its children. |
+| `morpthis_widget_raise` | Draws it above its siblings. |
 | `morpthis_widget_destroy` | Removes it from the screen and frees it. |
 | `morpthis_list_add/clear/count` | Items are copied. |
 | `morpthis_list_set_select_cb` | `(widget, index, user)`. |
@@ -80,7 +83,13 @@ Buttons take `morpthis_click_cb(widget, user)`. Sliders fire their value
 callback when the user moves them and when `morpthis_slider_set_value()` is
 called. An image path is relative to the app folder; the player decodes it on
 the GUI thread at creation and whenever its size changes, so it is for icons and
-small pictures, not a full-screen photograph.
+small pictures, not a full-screen photograph. A picture is never enlarged: ship
+it at the size it is drawn.
+
+Rotation is for images and turns around the widget's centre; the box keeps its
+size, so a turned picture may draw outside it. Opacity and `raise` are what an
+overlay uses: a full-screen image at 0..100 percent, brought to the front when
+it is shown, is a hit flash or a fade.
 
 Destroying the screen that is currently on display requests a quit rather than
 deleting LVGL's active page underneath it. Quit with `morpthis_app_quit()`.
@@ -117,9 +126,18 @@ quits, unless it is itself a player.
 | `play/pause/next/prev` | False when the player cannot honour it. |
 | `morpthis_audio_volume()` | 0..100. |
 | `morpthis_audio_set_volume(v)` | Clamps. |
+| `morpthis_audio_open(rate, channels, buffer_ms)` | Takes the output; stops playback and radio. |
+| `morpthis_audio_write(pcm, frames)` | Signed 16-bit interleaved; blocks at DAC pace. |
+| `morpthis_audio_close()` | Releases the output; playback stays stopped. |
 
 `morpthis_track_t` has fixed arrays and an `int duration_ms`; its layout is
 part of API 1.
+
+The raw output is for an app that mixes its own sound (a game's effects). Open,
+write and close on the same thread: a write blocks until the device has room,
+which is what paces a mixer. There is no hardware mixing, so taking the output
+stops whatever the player was playing; the app can close it and call
+`morpthis_audio_play()` to hand it back.
 
 ## fs.h
 

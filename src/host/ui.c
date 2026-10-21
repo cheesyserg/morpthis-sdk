@@ -243,6 +243,20 @@ void morpthis_widget_set_visible(morpthis_widget_t *widget, bool visible) {
 	}
 }
 
+void morpthis_widget_set_rotation(morpthis_widget_t *widget, int degrees) {
+	(void)widget;
+	(void)degrees;
+}
+
+void morpthis_widget_set_opacity(morpthis_widget_t *widget, int opacity) {
+	(void)widget;
+	(void)opacity;
+}
+
+void morpthis_widget_raise(morpthis_widget_t *widget) {
+	(void)widget;
+}
+
 void morpthis_widget_set_enabled(morpthis_widget_t *widget, bool enabled) {
 	if (widget) {
 		widget->enabled = enabled;

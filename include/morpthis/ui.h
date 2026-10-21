@@ -66,6 +66,20 @@ void morpthis_widget_set_pos(morpthis_widget_t *widget, int x, int y);
 void morpthis_widget_set_size(morpthis_widget_t *widget, int width, int height);
 void morpthis_widget_set_visible(morpthis_widget_t *widget, bool visible);
 void morpthis_widget_set_enabled(morpthis_widget_t *widget, bool enabled);
+
+// Image widgets rotate clockwise around their centre, in whole degrees. The
+// box keeps its size; a turned picture can draw outside it, as the artwork
+// does when the bird tilts. Images only; other widgets ignore the call.
+void morpthis_widget_set_rotation(morpthis_widget_t *widget, int degrees);
+
+// 0 is invisible, 100 fully opaque. Applies to the widget and anything it
+// contains. A full-screen image with this is a flash or a fade.
+void morpthis_widget_set_opacity(morpthis_widget_t *widget, int opacity);
+
+// Draws the widget above its siblings. Useful for an overlay that has to stay
+// on top of widgets created later.
+void morpthis_widget_raise(morpthis_widget_t *widget);
+
 bool morpthis_widget_is_visible(const morpthis_widget_t *widget);
 bool morpthis_widget_is_enabled(const morpthis_widget_t *widget);
 
