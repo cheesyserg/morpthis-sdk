@@ -57,7 +57,8 @@ bool morpthis_audio_set_volume(int volume);
 //
 // The stream is signed 16-bit, interleaved, native endianness. `channels` is 1
 // or 2 and `buffer_ms` is the latency to ask the DAC for (0 uses the player's
-// usual depth; a game wants 30-60). Stops playback and radio first. Returns
+// usual deep depth, about 750 ms and independent of its local playback buffer
+// setting; a game wants 30-60). Stops playback and radio first. Returns
 // false when the output cannot be taken (no card, a call already active, or
 // the device is busy).
 bool morpthis_audio_open(int rate, int channels, int buffer_ms);
