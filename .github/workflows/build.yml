@@ -1,0 +1,46 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host:
+    name: Host runtime and samples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and smoke-test
+        run: make test
+
+  contract:
+    name: ABI contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Symbol list is sorted and unique
+        run: |
+          sort -c abi/morpthis-api-1.txt
+          test "$(sort -u abi/morpthis-api-1.txt | wc -l)" = \
+               "$(wc -l < abi/morpthis-api-1.txt)"
+      - name: Shell syntax
+        run: |
+          sh -n toolchain/fetch.sh
+          sh -n tools/check-exports.sh
+
+  # The device build needs the pinned toolchain. Enable this job when the
+  # tarball is published on a release:
+  #
+  # device:
+  #   name: Device build and ABI check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build and check
+  #       run: |
+  #         docker build \
+  #           --build-arg MORPTHIS_TOOLCHAIN_URL=${{ secrets.MORPTHIS_TOOLCHAIN_URL }} \
+  #           -t morpthis-sdk-toolchain toolchain/
+  #         docker run --rm -v "$PWD:/work" -w /work morpthis-sdk-toolchain \
+  #           make device check-abi

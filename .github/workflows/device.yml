@@ -1,0 +1,101 @@
+name: device
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+# Builds the pinned MIPS toolchain from the player's rockboxdev script, caches
+# it, then cross-builds the samples and runs the device ABI check. The cache key
+# follows the player's toolchain scripts: a change there is a new toolchain.
+# The first run is long (binutils, GCC, glibc); later runs restore the compiler
+# and only build the samples.
+
+jobs:
+  device:
+    name: Cross build and ABI check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out the SDK
+        uses: actions/checkout@v5
+
+      - name: Check out the player's toolchain scripts
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/morpthis-player
+          path: player
+
+      - name: Install toolchain build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git pkg-config wget curl ca-certificates \
+            texinfo bison flex gawk gperf patch xz-utils bzip2 gzip \
+            autoconf automake libtool libtool-bin \
+            libgmp-dev libmpfr-dev libmpc-dev python3
+
+      - name: Restore the toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            toolchain
+            toolchain-downloads
+          key: morpthis-toolchain-${{ runner.os }}-${{ hashFiles('player/morpthis-player/rockboxdev/**', 'player/morpthis-player/Makefile') }}
+          restore-keys: |
+            morpthis-toolchain-${{ runner.os }}-
+
+      - name: Build the pinned toolchain
+        env:
+          RBDEV_HOST_PREFIX: ${{ github.workspace }}/toolchain
+          RBDEV_DOWNLOAD: ${{ github.workspace }}/toolchain-downloads
+        run: |
+          set -euo pipefail
+          if [ ! -x "$RBDEV_HOST_PREFIX/bin/mipsel-rockbox-linux-gnu-gcc" ]; then
+            cd player/morpthis-player
+            RBDEV_MORPTHIS_MINIMAL=1 bash ./rockboxdev/rockboxdev.sh
+          fi
+          echo "$RBDEV_HOST_PREFIX/bin" >> "$GITHUB_PATH"
+
+      - name: Cross-build the samples
+        run: make device
+
+      - name: Check glibc and GLIBCXX symbols
+        run: make check-abi
+
+      - name: Stage the sample packages
+        run: |
+          set -euo pipefail
+          for dir in samples/*/; do
+            make -C "$dir" MORPTHIS_MODE=device stage
+          done
+
+      - name: Upload the staged samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: morpthis-sdk-samples-${{ github.sha }}
+          path: samples/*/build/device/app/*/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Package the toolchain
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tar -cJf morpthis-toolchain.tar.xz -C "$GITHUB_WORKSPACE/toolchain" .
+
+      - name: Attach the toolchain to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::notice::No release named $GITHUB_REF_NAME; the tarball is only in the workflow run."
+            exit 0
+          fi
+          gh release upload "$GITHUB_REF_NAME" morpthis-toolchain.tar.xz --clobber
