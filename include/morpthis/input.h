@@ -16,9 +16,9 @@ extern "C" {
 //
 // On the V1 the transport keys arrive as PRESS only (the kernel repeat becomes
 // another PRESS); BACK arrives as PRESS then RELEASE from the chevron or swipe,
-// and the player then quits the app. While a game is in active play the player
-// offers it the volume keys too, again as repeated PRESS events; see
-// morpthis_input_set_gameplay() below.
+// and the player then quits the app. While a game is in active play, the
+// previous-track key and the volume keys repeat for as long as they are held;
+// see morpthis_input_set_gameplay() below.
 
 typedef enum {
 	MORPTHIS_BUTTON_PLAY_PAUSE = 0,

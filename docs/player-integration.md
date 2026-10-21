@@ -157,7 +157,8 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
   `MORPTHIS_BUTTON_BACK`.
 - The player currently delivers `PRESS` for the transport keys (the kernel's
   repeat becomes another press); `BACK` is delivered as `PRESS` then `RELEASE`
-  by the chevron and swipe, followed by a quit. The SDK allows `REPEAT` and
+  by the chevron and swipe, followed by a quit. In active gameplay the
+  previous-track and volume keys repeat while held. The SDK allows `REPEAT` and
   `RELEASE`; if the player gains release events, it can start sending them
   without an API change.
 - While a game app says it is in active play (`morpthis_input_set_gameplay`)
