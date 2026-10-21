@@ -125,9 +125,12 @@ on. `BACK` is delivered as `PRESS` then `RELEASE` by the chevron and swipe, and
 the player then quits the app. While a game is in active play, the
 previous-track key and the volume keys repeat for as long as they are held;
 call `morpthis_input_set_gameplay(true/false)` as the game enters and leaves
-play, menus and pauses. A game that does not call it, or has no button
-callback, leaves the volume keys to the player. On other screens the volume
-keys stay the player's; read `morpthis_audio_volume()` or set it explicitly.
+play, menus and pauses. Call `morpthis_input_set_game_menu(true/false)` while
+the game's own menu is open: the volume keys are then offered to the game (for
+menu navigation or text entry) instead of changing the player's volume. A game
+that does not call either, or has no button callback, leaves the volume keys to
+the player. On other screens the volume keys stay the player's; read
+`morpthis_audio_volume()` or set it explicitly.
 
 Widget taps are delivered to the widget, not to the touch callback.
 

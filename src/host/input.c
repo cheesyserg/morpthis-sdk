@@ -22,6 +22,8 @@ void morpthis_input_set_gameplay(bool active) {
 	(void)active;
 }
 
+void morpthis_input_set_game_menu(bool active) { (void)active; }
+
 void host_input_dispatch_button(morpthis_button_t button,
 								morpthis_input_action_t action) {
 	if (g_button_cb) {

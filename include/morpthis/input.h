@@ -67,6 +67,12 @@ void morpthis_input_set_touch_cb(morpthis_touch_cb cb, void *user);
 // when the volume rocker really has a different job.
 void morpthis_input_set_gameplay(bool active);
 
+// Tell the player that a game's own menu is on screen. The volume keys are
+// then offered to the game as button presses instead of changing the volume,
+// including while the game is typing a save name. Set it when the menu opens
+// and clear it when the menu closes. It is ignored outside the game category.
+void morpthis_input_set_game_menu(bool active);
+
 #ifdef __cplusplus
 }
 #endif
