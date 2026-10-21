@@ -85,29 +85,49 @@ For CMake projects, `cmake/morpthis-toolchain.cmake` is the equivalent of
 
 ## Packages
 
-An app package is a zip with the app folder at its root:
+A package is one uncompressed squashfs image with the app folder at its root:
 
 ```text
-calculator-1.0.0.mapp
+calculator.pkgmerp
   app.json
   icon.png
   calculator
 ```
 
-`make stage` in `app.mk` writes exactly that folder to
-`build/device/app/<id>/`. The apps repository's `tools/package.sh` validates
-the manifest, stages the build and zips it.
+The player mounts it read-only through a loop device and runs the entry from
+the mount point; nothing is extracted to the card. The image is deliberately
+uncompressed (`mksquashfs -noI -noD -noF -noX -comp gzip`): the kernel then serves file
+data straight from the card through the page cache, with no decompression
+workspace, at the cost of a larger file. On a card with room, that is the right
+trade for the 64 MB player.
 
-The player does not install a `.mapp` yet; the user extracts it under
-`Apps/<id>/`.
+`make stage` in `app.mk` writes the folder to `build/device/app/<id>/`. The apps
+repository's `tools/package.sh` validates the manifest, stages the build and
+runs `mksquashfs`. It needs `squashfs-tools` on the build machine.
+
+On the card:
+
+```text
+<card>/
+  Apps/
+    pkgmerps/
+      calculator.pkgmerp
+  merp_data/
+    calculator/        the app's writable folder
+```
+
+The package name is the app id and carries no version: exactly one package per
+app, and replacing the file is the update. The version stays in `app.json` and
+the release tag. The data folder is separate so an update can replace the
+package without disturbing saves, settings or downloaded content.
 
 ## CI
 
 The SDK's `build.yml` workflow builds the host runtime and runs every sample on
 every push. `device.yml` is for tags and manual runs: it checks out the player's
 `rockboxdev` scripts, builds the pinned MIPS toolchain (cached by the scripts'
-hash), cross-builds the samples, runs `check-abi` and uploads the staged
-binaries. The first run builds binutils, GCC and glibc; later runs restore the
+hash), cross-builds the samples, runs `check-abi` and uploads one `.pkgmerp` per
+sample. The first run builds binutils, GCC and glibc; later runs restore the
 cache.
 
 On a tag, `device.yml` also packs the toolchain as

@@ -40,6 +40,17 @@ typedef void (*morpthis_post_fn)(void *user);
 // hidden.
 MORPTHIS_EXPORT int morpthis_app_main(const morpthis_app_t *app);
 
+// Optional, implemented by an app that owns threads, a network connection or
+// the raw audio output. The player calls it once on the GUI thread before it
+// destroys the app's screens and unloads the shared object, including when it
+// closes the app to hand the card to a computer in USB mass-storage mode.
+//
+// Stop the app's threads and close anything the app opened; do not block, and
+// do not assume the app's screen is still usable afterwards. A missing symbol
+// is fine: the player checks with dlsym(). The call must be idempotent because
+// an app that already called morpthis_app_quit() has stopped its own work.
+MORPTHIS_EXPORT void morpthis_app_shutdown(void);
+
 // Implemented by the app. It returns the MORPTHIS_APP_API_VERSION the app was
 // compiled with, so the player can refuse a plugin built for a newer major API
 // before it calls the entry point. The player may treat a missing symbol as
@@ -61,8 +72,10 @@ const char *morpthis_app_id(const morpthis_app_t *app);
 const char *morpthis_app_name(const morpthis_app_t *app);
 const char *morpthis_app_version(const morpthis_app_t *app);
 
-// The absolute path of the app's own folder. Files next to the app are found
-// relative to this; morpthis_fs_app_folder() is the same directory.
+// The absolute path of the mounted package root. Files shipped beside the
+// entry are found relative to this; morpthis_fs_app_folder() is the same
+// directory. It is read-only, and it is only valid while the app is loaded.
+// Files the app writes belong in morpthis_fs_data_folder().
 const char *morpthis_app_folder(const morpthis_app_t *app);
 
 // The API version the player implements. Compare it with

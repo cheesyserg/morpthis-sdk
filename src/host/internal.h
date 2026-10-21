@@ -78,6 +78,7 @@ struct morpthis_file {
 };
 
 extern char g_app_folder[HOST_PATH_MAX];
+extern char g_app_data[HOST_PATH_MAX];
 extern char g_card_root[HOST_PATH_MAX];
 
 void host_runtime_init(const char *id, const char *name, const char *version,

@@ -10,17 +10,32 @@ extern "C" {
 
 // Files on the card.
 //
-// Every path is relative to the app's own folder and is resolved by the player.
+// Every path is relative to the app and is resolved by the player.
 // Absolute paths, backslashes and any path containing ".." are refused, as in
 // the player's manifest reader: an app from a removable card must not be able
 // to name a file outside its folder by accident or by intent.
 //
+// An app package is a read-only image. The app's writable folder is separate,
+// at <card>/merp_data/<id>, and the two are presented as one tree:
+//
+//   read          the data folder first, then the package
+//   write/append  the data folder, copying a shipped file there before the
+//                 first update
+//
+// So a default file shipped in the package can be edited, and the package
+// itself never changes. morpthis_fs_app_folder() is the package root;
+// morpthis_fs_data_folder() is the writable folder. `remove` and `rename` fail
+// with EROFS on a package-only file; `mkdir` creates the data folder even when
+// the package has a directory of that name, so an app can add files to a
+// shipped folder.
+//
 // Functions that fail set errno and return -1, 0 or NULL as documented. The card
 // may disappear at any time; check the result of every write.
 
-// The app's folder (absolute) and the card root (absolute). Both are owned by
-// the player and valid for the app's lifetime.
+// The package root, the writable data folder and the card root (all absolute).
+// They are owned by the player and valid for the app's lifetime.
 const char *morpthis_fs_app_folder(void);
+const char *morpthis_fs_data_folder(void);
 const char *morpthis_fs_card_root(void);
 
 typedef struct morpthis_file morpthis_file_t;
@@ -33,6 +48,7 @@ typedef enum {
 } morpthis_fs_mode_t;
 
 // Opens `relative`. Returns NULL and sets errno on failure.
+// A read falls back to the package when the data folder has no such file.
 morpthis_file_t *morpthis_fs_open(const char *relative, morpthis_fs_mode_t mode);
 
 // Return the number of bytes transferred. A short read or write is not an
@@ -59,6 +75,11 @@ long morpthis_fs_read_all(const char *relative, char *buffer, size_t max,
 						  size_t *out_size);
 
 bool morpthis_fs_exists(const char *relative);
+
+// Resolves `relative` to the absolute path a read would open: the data folder
+// when it has the file, otherwise the package. For handing a path to a library
+// that opens files itself. False and ENOENT when neither folder has it.
+bool morpthis_fs_resolve(const char *relative, char *out, size_t size);
 
 // 0 on success, -1 on failure.
 int morpthis_fs_remove(const char *relative);

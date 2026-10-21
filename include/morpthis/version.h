@@ -31,9 +31,10 @@
 			 ? 1                                                                \
 			 : -1]
 
-// Export marker for the entry point. An app is built with hidden visibility so
-// only its entry point is reachable through dlsym(); the declaration in app.h
-// carries this, and the definition inherits it.
+// Export marker for the entry point and the optional shutdown hook. An app is
+// built with hidden visibility so only the symbols declared with this are
+// reachable through dlsym(); the declarations in app.h carry it, and the
+// definitions inherit it.
 #if defined(_WIN32)
 #define MORPTHIS_EXPORT __declspec(dllexport)
 #else

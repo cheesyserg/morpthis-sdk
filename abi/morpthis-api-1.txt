@@ -25,6 +25,7 @@ morpthis_canvas_invalidate
 morpthis_fs_app_folder
 morpthis_fs_card_root
 morpthis_fs_close
+morpthis_fs_data_folder
 morpthis_fs_exists
 morpthis_fs_mkdir
 morpthis_fs_open
@@ -32,6 +33,7 @@ morpthis_fs_read
 morpthis_fs_read_all
 morpthis_fs_remove
 morpthis_fs_rename
+morpthis_fs_resolve
 morpthis_fs_seek
 morpthis_fs_tell
 morpthis_fs_write

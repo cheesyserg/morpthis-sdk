@@ -105,8 +105,10 @@ See [docs/building.md](docs/building.md).
 - **A memory budget.** `morpthis_app_mem_available()` reports what the player
   can see; a utility should fit in 4 MB, a game in 8 MB. The manifest's `tier`
   is `light` (leave playback and caches alone) or `heavy` (release them first).
-- **Paths stay in the app folder.** `fs.h` refuses absolute paths, backslashes
-  and `..`, exactly as the player's manifest reader does.
+- **The package is read-only; the data folder is the app's.** `fs.h` resolves
+  every path against `merp_data/<id>` first and the mounted package second, and
+  sends every write to the data folder. Absolute paths, backslashes and `..`
+  are refused, exactly as the player's manifest reader does.
 - **No networking, Bluetooth or DAC registers in API 1.** They belong to the
   player; an app that needs them asks for a later API.
 

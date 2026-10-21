@@ -10,13 +10,17 @@
 // The same rule the player applies to a manifest: relative to the app folder,
 // no absolute path, no backslash and no "..". A path from an app is trusted no
 // further than a path from the card.
-static bool resolve(const char *relative, char *out, size_t size) {
+static bool resolve_in(const char *base, const char *relative, char *out, size_t size) {
+	if (!base || !base[0]) {
+		errno = ENODEV;
+		return false;
+	}
 	if (!relative || !relative[0] || relative[0] == '/' || strchr(relative, '\\') ||
 		strstr(relative, "..")) {
 		errno = EINVAL;
 		return false;
 	}
-	int n = snprintf(out, size, "%s/%s", g_app_folder[0] ? g_app_folder : ".", relative);
+	int n = snprintf(out, size, "%s/%s", base, relative);
 	if (n < 0 || (size_t)n >= size) {
 		errno = ENAMETOOLONG;
 		return false;
@@ -24,17 +28,162 @@ static bool resolve(const char *relative, char *out, size_t size) {
 	return true;
 }
 
+static const char *data_folder(void) {
+	return g_app_data[0] ? g_app_data : g_app_folder;
+}
+
+static bool path_exists(const char *path) {
+	struct stat st;
+	return path && path[0] && stat(path, &st) == 0;
+}
+
+// Makes the directories a relative path needs under the data folder, for the
+// copy-on-write path.
+static bool make_parents(const char *relative) {
+	char path[HOST_PATH_MAX];
+	const char *base = data_folder();
+	if (snprintf(path, sizeof(path), "%s/%s", base, relative) >= (int)sizeof(path)) {
+		errno = ENAMETOOLONG;
+		return false;
+	}
+
+	size_t base_length = strlen(base);
+	for (char *p = path + base_length + 1; *p; p++) {
+		if (*p != '/') {
+			continue;
+		}
+		*p = '\0';
+		if (mkdir(path, 0755) != 0 && errno != EEXIST) {
+			return false;
+		}
+		*p = '/';
+	}
+	return true;
+}
+
+static bool copy_file(const char *from, const char *to) {
+	if (strcmp(from, to) == 0) {
+		return true; // the host runner may use one folder for both
+	}
+
+	char buffer[4096];
+	FILE *in = fopen(from, "rb");
+	if (!in) {
+		return false;
+	}
+	FILE *out = fopen(to, "wb");
+	if (!out) {
+		fclose(in);
+		return false;
+	}
+
+	bool ok = true;
+	size_t got;
+	while ((got = fread(buffer, 1, sizeof(buffer), in)) > 0) {
+		if (fwrite(buffer, 1, got, out) != got) {
+			ok = false;
+			break;
+		}
+	}
+	if (ferror(in)) {
+		ok = false;
+	}
+	if (fclose(out) != 0) {
+		ok = false;
+	}
+	fclose(in);
+
+	if (!ok) {
+		remove(to);
+		if (!errno) {
+			errno = EIO;
+		}
+	}
+	return ok;
+}
+
 const char *morpthis_fs_app_folder(void) {
 	return g_app_folder;
+}
+
+const char *morpthis_fs_data_folder(void) {
+	return data_folder();
 }
 
 const char *morpthis_fs_card_root(void) {
 	return g_card_root;
 }
 
-morpthis_file_t *morpthis_fs_open(const char *relative, morpthis_fs_mode_t mode) {
+bool morpthis_fs_resolve(const char *relative, char *out, size_t size) {
 	char path[HOST_PATH_MAX];
-	if (!resolve(relative, path, sizeof(path))) {
+	if (!out || size == 0) {
+		errno = EINVAL;
+		return false;
+	}
+
+	if (!resolve_in(data_folder(), relative, path, sizeof(path))) {
+		return false;
+	}
+	if (!path_exists(path)) {
+		if (!resolve_in(g_app_folder, relative, path, sizeof(path))) {
+			return false;
+		}
+		if (!path_exists(path)) {
+			errno = ENOENT;
+			return false;
+		}
+	}
+
+	int n = snprintf(out, size, "%s", path);
+	if (n < 0 || (size_t)n >= size) {
+		errno = ENAMETOOLONG;
+		return false;
+	}
+	return true;
+}
+
+morpthis_file_t *morpthis_fs_open(const char *relative, morpthis_fs_mode_t mode) {
+	char data_path[HOST_PATH_MAX];
+	char package_path[HOST_PATH_MAX];
+
+	const char *data = data_folder();
+	if (!resolve_in(data, relative, data_path, sizeof(data_path))) {
+		return NULL;
+	}
+
+	bool in_data = path_exists(data_path);
+	const char *chosen = data_path;
+
+	switch (mode) {
+	case MORPTHIS_FS_READ:
+		if (!in_data) {
+			if (!resolve_in(g_app_folder, relative, package_path, sizeof(package_path))) {
+				return NULL;
+			}
+			if (!path_exists(package_path)) {
+				errno = ENOENT;
+				return NULL;
+			}
+			chosen = package_path;
+		}
+		break;
+
+	case MORPTHIS_FS_WRITE:
+		break;
+
+	case MORPTHIS_FS_APPEND:
+	case MORPTHIS_FS_READ_WRITE:
+		if (!in_data && g_app_folder[0] &&
+			resolve_in(g_app_folder, relative, package_path, sizeof(package_path)) &&
+			path_exists(package_path)) {
+			if (!make_parents(relative) || !copy_file(package_path, data_path)) {
+				return NULL;
+			}
+		}
+		break;
+
+	default:
+		errno = EINVAL;
 		return NULL;
 	}
 
@@ -57,7 +206,7 @@ morpthis_file_t *morpthis_fs_open(const char *relative, morpthis_fs_mode_t mode)
 		return NULL;
 	}
 
-	FILE *fp = fopen(path, flags);
+	FILE *fp = fopen(chosen, flags);
 	if (!fp) {
 		return NULL;
 	}
@@ -167,35 +316,69 @@ long morpthis_fs_read_all(const char *relative, char *buffer, size_t max,
 
 bool morpthis_fs_exists(const char *relative) {
 	char path[HOST_PATH_MAX];
-	if (!resolve(relative, path, sizeof(path))) {
-		return false;
+	if (resolve_in(data_folder(), relative, path, sizeof(path)) && path_exists(path)) {
+		return true;
 	}
-	struct stat st;
-	return stat(path, &st) == 0;
+	return resolve_in(g_app_folder, relative, path, sizeof(path)) && path_exists(path);
 }
 
 int morpthis_fs_remove(const char *relative) {
-	char path[HOST_PATH_MAX];
-	if (!resolve(relative, path, sizeof(path))) {
+	char data_path[HOST_PATH_MAX];
+	char package_path[HOST_PATH_MAX];
+
+	if (!resolve_in(data_folder(), relative, data_path, sizeof(data_path))) {
 		return -1;
 	}
-	return remove(path);
+	if (remove(data_path) == 0) {
+		return 0;
+	}
+	if (errno != ENOENT) {
+		return -1;
+	}
+
+	if (resolve_in(g_app_folder, relative, package_path, sizeof(package_path)) &&
+		path_exists(package_path)) {
+		errno = EROFS;
+	}
+	return -1;
 }
 
 int morpthis_fs_rename(const char *from, const char *to) {
 	char from_path[HOST_PATH_MAX];
 	char to_path[HOST_PATH_MAX];
-	if (!resolve(from, from_path, sizeof(from_path)) ||
-		!resolve(to, to_path, sizeof(to_path))) {
+
+	const char *data = data_folder();
+	if (!resolve_in(data, from, from_path, sizeof(from_path)) ||
+		!resolve_in(data, to, to_path, sizeof(to_path))) {
 		return -1;
 	}
-	return rename(from_path, to_path);
+
+	if (rename(from_path, to_path) == 0) {
+		return 0;
+	}
+	if (errno != ENOENT) {
+		return -1;
+	}
+
+	char package_path[HOST_PATH_MAX];
+	if (resolve_in(g_app_folder, from, package_path, sizeof(package_path)) &&
+		path_exists(package_path)) {
+		errno = EROFS;
+	}
+	return -1;
 }
 
 int morpthis_fs_mkdir(const char *relative) {
-	char path[HOST_PATH_MAX];
-	if (!resolve(relative, path, sizeof(path))) {
+	char data_path[HOST_PATH_MAX];
+	if (!resolve_in(data_folder(), relative, data_path, sizeof(data_path))) {
 		return -1;
 	}
-	return mkdir(path, 0755);
+	if (path_exists(data_path)) {
+		errno = EEXIST;
+		return -1;
+	}
+
+	// Creating the data directory shadows a package directory of the same name
+	// and gives the app somewhere to add files.
+	return mkdir(data_path, 0755);
 }

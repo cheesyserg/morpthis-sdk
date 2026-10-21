@@ -12,6 +12,7 @@
 struct morpthis_app g_app;
 
 char g_app_folder[HOST_PATH_MAX];
+char g_app_data[HOST_PATH_MAX];
 char g_card_root[HOST_PATH_MAX];
 
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -73,6 +74,14 @@ static void set_card_root(void) {
 	}
 }
 
+// The writable folder. On the device this is <card>/merp_data/<id>; the host
+// runner keeps its old behaviour -- the app folder -- unless the test asks
+// for a separate one with MORPTHIS_APP_DATA.
+static void set_data_folder(void) {
+	const char *env = getenv("MORPTHIS_APP_DATA");
+	copy_string(g_app_data, sizeof(g_app_data), env && env[0] ? env : g_app_folder);
+}
+
 void host_runtime_init(const char *id, const char *name, const char *version,
 					   const char *folder) {
 	copy_string(g_app.id, sizeof(g_app.id), id && id[0] ? id : "app");
@@ -80,6 +89,7 @@ void host_runtime_init(const char *id, const char *name, const char *version,
 	copy_string(g_app.version, sizeof(g_app.version), version && version[0] ? version : "0.0.0");
 	set_folder(folder);
 	set_card_root();
+	set_data_folder();
 	copy_string(g_app.folder, sizeof(g_app.folder), g_app_folder);
 
 	pthread_mutex_lock(&g_lock);

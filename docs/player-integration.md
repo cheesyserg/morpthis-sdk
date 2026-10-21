@@ -40,8 +40,14 @@ defines them, and the player resolves them with `dlsym()`.
 
 ## 3. Loading
 
-The manifest's `entry` names a file relative to the app folder. Try the
-in-process path first:
+The manifest's `entry` names a file relative to the package root, and the
+package is a read-only squashfs image. Mount it through a loop device before
+trying the in-process path; `app->folder` is the mount point while it is up,
+and every failure path has to unmount again before reporting. The image is
+uncompressed on purpose, so the kernel maps its blocks without a decompression
+workspace.
+
+Try the in-process path first:
 
 ```c
 char path[PATH_MAX];
@@ -56,6 +62,7 @@ if (!handle) {
 int (*required)(void) = (int (*)(void))dlsym(handle, "morpthis_app_api_required");
 int (*entry)(const morpthis_app_t *) =
     (int (*)(const morpthis_app_t *))dlsym(handle, "morpthis_app_main");
+void (*shutdown)(void) = (void (*)(void))dlsym(handle, "morpthis_app_shutdown");
 if (!entry) {
     dlclose(handle);
     return apps_run(relative, timeout_ms, out);
@@ -78,6 +85,15 @@ runs. Log the `dlerror()` text so a plugin with a missing symbol is not silently
 treated as a tool. A file that has an entry point but fails the API check is a
 plugin failure, not a tool: report it.
 
+The mount stays up for the whole launch. It is released after `dlclose()` on
+quit, and immediately when the launch failed or when the entry turned out to be
+a tool (the tool path mounts it again for the child's lifetime).
+
+`morpthis_app_shutdown` is optional. It is the app's only chance to stop its
+own threads and close the raw audio or a network connection before the player
+destroys its screens and unloads the object. Resolve it with `dlsym()` and call
+it before `dlclose()`; a missing symbol is fine.
+
 ## 4. The app context
 
 `morpthis_app_t` is opaque to the app and owned by the player. Fill it from the
@@ -90,7 +106,8 @@ typedef struct morpthis_app {
     char id[APPS_ID_MAX];
     char name[APPS_NAME_MAX];
     char version[APPS_VERSION_MAX];
-    char folder[APPS_FOLDER_MAX];
+    char folder[APPS_FOLDER_MAX]; // the mounted, read-only package root
+    char data[APPS_FOLDER_MAX];   // the writable merp_data folder
     app_tier_t tier;
 
     void *dl_handle;
@@ -103,8 +120,8 @@ typedef struct morpthis_app {
 ```
 
 `morpthis_app_id()` and the rest return pointers into this struct. The folder is
-the one the current launcher already computes and passes as the child's working
-directory; it must be absolute.
+the mount point the launcher set up; the data folder is
+`<card>/merp_data/<id>`, created before the entry point runs.
 
 ## 5. Lifecycle
 
@@ -126,9 +143,14 @@ On `morpthis_app_quit()`:
 3. Detach every posted callback that belongs to this app (`sdk_detach_app()`),
    so a queued trampoline cannot enter the shared object after `dlclose()`.
 4. Close any files the SDK opened on the app's behalf.
-5. `dlclose()` the handle. An app must stop its own threads before it quits;
-   a thread still inside the player after `dlclose()` is a use-after-free the
-   player cannot detect. Keep that rule in the app-writing docs.
+5. Call the optional `morpthis_app_shutdown` on the GUI thread, while the app
+   context and screens still exist, so the app can stop its threads and audio.
+6. `dlclose()` the handle. An app that has no shutdown hook must have stopped
+   its own threads already; a thread still inside the player after `dlclose()`
+   is a use-after-free the player cannot detect. Keep that rule in the
+   app-writing docs.
+7. Unmount the package and release the loop device. Nothing may touch the
+   mount point after this.
 
 There is no process boundary: a fault in the app takes the player down. Say so
 in the Apps page and the docs. That is the accepted cost of fitting in the 18 MB
@@ -185,9 +207,16 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
 
 ## 9. Filesystem bridge
 
-- Resolve every relative path against the app's folder. Apply the same
-  `safe_relative()` rule the manifest reader uses: no leading `/`, no `\`, no
-  `..` anywhere. Reject with `EINVAL`.
+- Resolve every relative path against the app's data folder first and the
+  package second. Apply the same `safe_relative()` rule the manifest reader
+  uses: no leading `/`, no `\`, no `..` anywhere. Reject with `EINVAL`.
+- `morpthis_fs_app_folder()` is the read-only mount point;
+  `morpthis_fs_data_folder()` is the writable folder. Reads fall back to the
+  package, writes go to the data folder, and a package file opened for update is
+  copied to the data folder first. `remove`/`rename` on a package-only file
+  fails with `EROFS`.
+- Set the child's `MORPTHIS_APP_FOLDER` and `MORPTHIS_APP_DATA` in the tool
+  path, so a headless program finds both halves of the tree.
 - Use `-D_FILE_OFFSET_BITS=64`; exFAT cards routinely produce inodes wider than
   32 bits, and `readdir()`/`stat()` fail with `EOVERFLOW` without it.
 - Open with the device's libc, close on quit, and propagate `errno`. A card can
@@ -223,6 +252,7 @@ Reuse the table in `docs/apps.md` and add the plugin cases:
 
 | What happened | What the page shows |
 | --- | --- |
+| Package cannot be mounted | `name: mount: <errno>` |
 | `dlopen` failed | Falls back to the tool path |
 | `morpthis_app_main` missing | Falls back to the tool path |
 | App requires API 2, player has 1 | "needs a newer player" |

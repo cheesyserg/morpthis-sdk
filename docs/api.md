@@ -20,17 +20,32 @@ tears the app down.
 The function is exported (`MORPTHIS_EXPORT` is declared on it). The app is
 compiled with hidden visibility; everything else in it stays private.
 
-An app also exports the API it was built against, so the player can refuse it
-before calling in:
+// An app also exports the API it was built against, so the player can refuse it
+// before calling in:
 
 ```c
 MORPTHIS_DEFINE_API_VERSION();
 ```
 
-Put that once at file scope. It defines
-`int morpthis_app_api_required(void)`, which returns
-`MORPTHIS_APP_API_VERSION` from the header the app compiled with. The player
-treats a missing symbol as API 1 but refuses a newer major.
+Put that once at file scope. It defines `int morpthis_app_api_required(void)`,
+which returns `MORPTHIS_APP_API_VERSION` from the header the app compiled with.
+The player treats a missing symbol as API 1 but refuses a newer major.
+
+An app with threads, a network connection or the raw audio output should also
+export an optional shutdown hook:
+
+```c
+MORPTHIS_EXPORT void morpthis_app_shutdown(void) {
+    // stop the app's threads, close its audio stream and its files
+}
+```
+
+The player calls it once on the GUI thread before destroying the app's screens
+and `dlclose()`ing it — including when the user confirms USB mass-storage mode
+and the app has to make way for the card to be shared. It must not block and
+must be safe to call twice: an app that already went through
+`morpthis_app_quit()` has done its own teardown. A missing symbol is fine; the
+player looks it up with `dlsym()`.
 
 The manifest's `tier` decides what the player does before loading: a `light`
 app leaves playback and caches alone; a `heavy` app asks the player to stop
@@ -44,7 +59,7 @@ away.
 | Call | Notes |
 | --- | --- |
 | `morpthis_app_id/name/version(app)` | Manifest values, never NULL. |
-| `morpthis_app_folder(app)` | Absolute path of the app's own folder. |
+| `morpthis_app_folder(app)` | Absolute path of the mounted package root. Read-only. |
 | `morpthis_app_api_version(app)` | The API the player implements. |
 | `morpthis_app_mem_available()` | Bytes available; `SIZE_MAX` when unknown. |
 | `morpthis_app_time_ms()` | Monotonic milliseconds, wraps at 32 bits. |
@@ -84,7 +99,7 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 
 Buttons take `morpthis_click_cb(widget, user)`. Sliders fire their value
 callback when the user moves them and when `morpthis_slider_set_value()` is
-called. An image path is relative to the app folder; the player decodes it on
+called. An image path is relative to the package root; the player decodes it on
 the GUI thread at creation and whenever its size changes, so it is for icons and
 small pictures, not a full-screen photograph. A picture is never enlarged: ship
 it at the size it is drawn.
@@ -162,12 +177,28 @@ stops whatever the player was playing; the app can close it and call
 
 ## fs.h
 
-Every path is relative to the app folder. Absolute paths, backslashes and any
-path containing `..` are refused with `errno = EINVAL`.
+Every path is relative to the app and resolved by the player. Absolute paths,
+backslashes and any path containing `..` are refused with `errno = EINVAL`.
+
+A package is a read-only image; the app's writable folder is separate. The two
+are presented as one tree:
+
+- A read opens the file in the data folder first, then in the package.
+- A write, append or read/write opens the data folder. A package file opened for
+  update is copied there first, so a shipped default can be edited.
+- `remove`, `rename` and `mkdir` act on the data folder. Removing or renaming a
+  file that exists only in the package fails with `errno = EROFS`; `mkdir`
+  creates a data directory even when the package has one of that name, so an
+  app can add files to a shipped folder.
+
+So the package never changes, and deleting the package leaves the user's data
+behind.
 
 | Call | Notes |
 | --- | --- |
-| `morpthis_fs_app_folder()/card_root()` | Absolute, owned by the player. |
+| `morpthis_fs_app_folder()` | The package root, read-only. |
+| `morpthis_fs_data_folder()` | The writable folder, `merp_data/<id>` on the card. |
+| `morpthis_fs_card_root()` | The card root. All three are absolute, owned by the player. |
 | `morpthis_fs_open(path, mode)` | Modes: read, write, append, read/write. |
 | `morpthis_fs_read/write` | Return bytes transferred. |
 | `morpthis_fs_seek/tell` | `fseek`/`ftell` semantics. |
@@ -175,6 +206,7 @@ path containing `..` are refused with `errno = EINVAL`.
 | `morpthis_fs_write_all` | Creates or truncates; true on a complete write. |
 | `morpthis_fs_read_all` | NUL-terminates, bounded by `max`. |
 | `morpthis_fs_exists/remove/rename/mkdir` | `0` on success, `-1` otherwise. |
+| `morpthis_fs_resolve(path, out, size)` | The absolute path a read would open; for a library that opens files itself. |
 
 The card may disappear at any time. Check every write; do not assume a file
 stays open across a UI transition.
@@ -211,4 +243,5 @@ The host runner reads `MORPTHIS_HOST_SCRIPT`, a semicolon-separated list:
 
 A missing button or an unknown command makes the runner fail with status 2, so
 CI catches a screen that lost its control. `MORPTHIS_RUN_MS` bounds a run that
-does not quit; the default is 250 ms.
+does not quit; the default is 250 ms. `MORPTHIS_APP_DATA` points the writable
+folder at a temporary directory, so a test does not write into the source tree.
