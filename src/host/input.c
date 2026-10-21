@@ -16,6 +16,12 @@ void morpthis_input_set_touch_cb(morpthis_touch_cb cb, void *user) {
 	g_touch_user = user;
 }
 
+void morpthis_input_set_gameplay(bool active) {
+	// The host runner injects buttons directly and has no player-owned volume
+	// keys to context-switch.
+	(void)active;
+}
+
 void host_input_dispatch_button(morpthis_button_t button,
 								morpthis_input_action_t action) {
 	if (g_button_cb) {

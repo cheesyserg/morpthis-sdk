@@ -160,8 +160,11 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
   by the chevron and swipe, followed by a quit. The SDK allows `REPEAT` and
   `RELEASE`; if the player gains release events, it can start sending them
   without an API change.
-- Volume keys stay the player's; an app reads or sets the volume through the
-  audio API instead of owning the rocker.
+- While a game app says it is in active play (`morpthis_input_set_gameplay`)
+  and it has a button callback, the volume keys are delivered to that callback
+  (including repeats while held) and no longer move the player's volume. In
+  menus, pauses, and for a game with no button callback, the volume keys stay
+  the player's; an app reads or sets the volume through the audio API instead.
 - The touch callback is for apps that draw their own surface. Widgets receive
   taps through LVGL; do not send the same tap to both.
 - Clear the callbacks on quit. A callback into an unloaded plugin is a crash.
