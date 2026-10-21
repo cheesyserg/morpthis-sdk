@@ -27,7 +27,11 @@ typedef enum {
 	MORPTHIS_BUTTON_VOLUME_UP,
 	MORPTHIS_BUTTON_VOLUME_DOWN,
 	MORPTHIS_BUTTON_POWER,
-	MORPTHIS_BUTTON_BACK
+	MORPTHIS_BUTTON_BACK,
+	// Delivered when the user taps the app's now-playing card in the player's
+	// control centre. An app that has a now-playing page shows it; others can
+	// ignore it. It never comes from a physical key.
+	MORPTHIS_BUTTON_NOW_PLAYING
 } morpthis_button_t;
 
 typedef enum {

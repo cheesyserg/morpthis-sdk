@@ -116,6 +116,12 @@ void morpthis_audio_set_playing(bool playing) {
 	(void)playing;
 }
 
+void morpthis_audio_set_track(const morpthis_track_t *track, bool playing) {
+	// The headless host has no control centre to show it in.
+	(void)track;
+	(void)playing;
+}
+
 void morpthis_audio_close(void) {
 	g_output_open = false;
 	g_bits = 16;

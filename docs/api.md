@@ -31,8 +31,11 @@ Put that once at file scope. It defines `int morpthis_app_api_required(void)`,
 which returns `MORPTHIS_APP_API_VERSION` from the header the app compiled with.
 The player treats a missing symbol as API 1 but refuses a newer major. API 2
 adds `morpthis_audio_open_ex`, `morpthis_audio_write_pcm`,
-`morpthis_audio_set_playing` and `morpthis_app_background`; the SDK version is
-1.1.0 and the ABI list is `abi/morpthis-api-2.txt`.
+`morpthis_audio_set_playing`, `morpthis_audio_set_track`,
+`morpthis_app_background`, `morpthis_app_back_handled`, the player-styled icon
+buttons and text size/dim/align calls, the full-height screen,
+`morpthis_image_set_source` and the control-centre `NOW_PLAYING` button; the SDK
+version is 1.1.0 and the ABI list is `abi/morpthis-api-2.txt`.
 
 An app with threads, a network connection or the raw audio output should also
 export an optional shutdown hook:
@@ -70,6 +73,7 @@ away.
 | `morpthis_app_post(fn, user)` | Runs on the GUI thread. Any thread may call. |
 | `morpthis_app_quit()` | Destroys the screen and returns to Apps. |
 | `morpthis_app_background()` | Hides the app's screens and keeps it running. |
+| `morpthis_app_back_handled()` | The BACK handler moved to another of the app's screens. |
 
 `morpthis_app_main` must return before the player starts dispatching events.
 A callback that needs to do slow work starts a thread, then posts the result.
@@ -84,6 +88,14 @@ mounted, so USB mass storage still asks before closing it. Call it from the GUI
 thread; an app that calls it from its BACK handler is left in the background
 instead of being quit by the chevron.
 
+`morpthis_app_back_handled()` is the other answer to BACK. An app with its own
+pages (a library that walks up a level, a settings page returning to its menu)
+calls it from the BACK handler after loading the parent screen. The chevron and
+the swipe-back then keep the app loaded, exactly as they keep a player page on
+screen. Without either call, BACK is the way out of a non-game app and quits it.
+Only the delivery of that BACK reads the flag, so a later chevron press is a
+fresh decision.
+
 ## ui.h
 
 Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
@@ -92,11 +104,20 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 | Call | Notes |
 | --- | --- |
 | `morpthis_screen_create(title)` | One per view. Returns NULL on failure. |
+| `morpthis_screen_create_full(title)` | No title row: the content starts under the status bar. |
 | `morpthis_screen_load(screen)` | Shows it; the previous screen stays alive. |
 | `morpthis_screen_active()` | The loaded screen, or NULL. |
+| `morpthis_screen_set_title(title)` | Updates the player's heading. |
+| `morpthis_screen_add_corner_button(icon, cb)` | An app action in the heading row. |
 | `morpthis_screen_destroy(screen)` | Frees the screen and its widgets. |
+| `morpthis_ui_full_height()` | The height a full screen gets. |
 | `*_create(screen, ...)` | label, button, list, image, slider, canvas. |
+| `morpthis_icon_button_create(screen, icon, size, cb)` | A player glyph on a flat hit target. |
+| `morpthis_widget_set_icon(widget, icon)` | Replaces the glyph; other widgets ignore it. |
 | `morpthis_widget_set_text/text` | Labels and buttons. |
+| `morpthis_widget_set_text_size(widget, size)` | 14, 16, 18, 20, 22, 24, 26 or 32, snapped. |
+| `morpthis_widget_set_text_dim(widget, dim)` | The player's secondary text colour. |
+| `morpthis_widget_set_text_align(widget, align)` | Left, centre or right. |
 | `morpthis_widget_set_pos/size` | Absolute layout in pixels. |
 | `morpthis_widget_set_visible/enabled` | Disabled widgets do not fire. |
 | `morpthis_canvas_buffer(canvas)` | The app's RGB565 pixels; stride = width. |
@@ -111,14 +132,24 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 | `morpthis_list_set_playing` | Accent bar on one row, or -1 to clear. |
 | `morpthis_list_set_select_cb` | `(widget, index, user)`. |
 | `morpthis_slider_set_value/value` | Clamped to the creation range. |
+| `morpthis_image_set_source(image, path)` | Re-resolves like an fs read, so a downloaded picture works. |
 | `morpthis_toast(text)` | One line in the player's toast area. |
 
 Buttons take `morpthis_click_cb(widget, user)`. Sliders fire their value
 callback when the user moves them and when `morpthis_slider_set_value()` is
 called. An image path is relative to the package root; the player decodes it on
 the GUI thread at creation and whenever its size changes, so it is for icons and
-small pictures, not a full-screen photograph. A picture is never enlarged: ship
-it at the size it is drawn.
+small pictures, not a full-screen photograph. `morpthis_image_set_source()`
+replaces the picture later and resolves it through the same tree as a read, so
+an app that downloads artwork into its data folder can show it without shipping
+it in the package. A picture is never enlarged: ship it at the size it is drawn.
+
+The icon set is the player's own (`PLAY`, `PAUSE`, `PREV`, `NEXT`, `STOP`,
+`QUEUE`, `MORE`, `SEARCH`, `CLOSE`), so a music app's transport looks like the
+player's. `morpthis_screen_add_corner_button()` adds one app action to the
+heading row, to the left of the player's own background button; a full screen
+has no heading row and returns NULL. A text size is one of the player's fonts,
+not a free value, and a dim label follows a theme change.
 
 Rotation is for images and turns around the widget's centre; the box keeps its
 size, so a turned picture may draw outside it. Opacity and `raise` are what an
@@ -147,17 +178,18 @@ Physical buttons and raw touch, for an app that draws its own surface. Set one
 callback each; setting NULL unsubscribes.
 
 Buttons: `PLAY_PAUSE`, `NEXT`, `PREV`, `VOLUME_UP`, `VOLUME_DOWN`, `POWER`,
-`BACK`. Actions: `PRESS`, `RELEASE`, `REPEAT`. Touch actions: `DOWN`, `MOVE`,
-`UP`, `CANCEL`, with the point in display pixels.
+`BACK`, `NOW_PLAYING`. Actions: `PRESS`, `RELEASE`, `REPEAT`. Touch actions:
+`DOWN`, `MOVE`, `UP`, `CANCEL`, with the point in display pixels.
 
 The physical transport keys are delivered as `PRESS` only: this device reports a
 press and a release at the kernel but the player has no release event to pass
 on. `BACK` is delivered as `PRESS` then `RELEASE` by the chevron and swipe, and
 the player then quits the app unless the app calls `morpthis_app_background()`
-from its BACK handler. While a game is in active play, the
-previous-track key and the volume keys repeat for as long as they are held;
-call `morpthis_input_set_gameplay(true/false)` as the game enters and leaves
-play, menus and pauses. Call `morpthis_input_set_game_menu(true/false)` while
+(for a music app that keeps playing) or `morpthis_app_back_handled()` (for one
+that moved to another of its own screens) from its BACK handler. While a game
+is in active play, the previous-track key and the volume keys repeat for as
+long as they are held; call `morpthis_input_set_gameplay(true/false)` as the
+game enters and leaves play, menus and pauses. Call `morpthis_input_set_game_menu(true/false)` while
 the game's own menu is open: the volume keys are then offered to the game (for
 menu navigation or text entry) instead of changing the player's volume. A game
 that does not call either, or has no button callback, leaves the volume keys to
@@ -184,6 +216,7 @@ quits, unless it is itself a player.
 | `morpthis_audio_write(pcm, frames)` | Signed 16-bit interleaved; blocks at DAC pace. |
 | `morpthis_audio_write_pcm(pcm, frames)` | Any depth opened with `open_ex`; blocks at DAC pace. |
 | `morpthis_audio_set_playing(bool)` | Updates the status-bar play/pause glyph. |
+| `morpthis_audio_set_track(track, playing)` | Publishes the track for the control centre and status bar. |
 | `morpthis_audio_close()` | Releases the output; playback stays stopped. |
 
 `morpthis_track_t` has fixed arrays and an `int duration_ms`; its layout is
@@ -206,6 +239,16 @@ retried at 16 by the app, as local playback does.
 
 `morpthis_audio_set_playing()` is only the indicator. Call it when pause or
 resume takes effect, from any thread; closing the output clears it.
+
+`morpthis_audio_set_track()` is what makes an app's playback visible outside its
+own screens. The player copies the title, artist, album and duration and shows
+them on the control-centre card while the app holds the output; the play/pause
+there and the status-bar glyph come back as `PLAY_PAUSE`, `NEXT` and `PREV`
+buttons, and a tap on the card delivers `NOW_PLAYING`. Publish when a track
+starts or changes, and again with `playing = false` when it stops; pass NULL to
+clear it. It is safe from any thread, and safe before the output is open (the
+track is remembered, but the status glyph only moves once audio exists).
+Closing the output clears the published track.
 
 ## fs.h
 

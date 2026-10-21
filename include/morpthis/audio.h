@@ -90,6 +90,14 @@ size_t morpthis_audio_write(const int16_t *pcm, size_t frames);
 // output is open. Closing the output clears it automatically.
 void morpthis_audio_set_playing(bool playing);
 
+// Publishes the track the app is playing, for the player's control centre.
+// `track` is copied; NULL clears it. The player shows title, artist, album and
+// duration on the now-playing card, and taps there return to the app's
+// MORPTHIS_BUTTON_NOW_PLAYING handler. `playing` also updates the status-bar
+// glyph. Call it when a track starts, changes or stops; it is safe from any
+// thread. Closing the output clears the published track.
+void morpthis_audio_set_track(const morpthis_track_t *track, bool playing);
+
 // Releases the output. Playback does not resume by itself; the user starts it
 // again. Idempotent.
 void morpthis_audio_close(void);

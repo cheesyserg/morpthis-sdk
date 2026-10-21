@@ -116,6 +116,13 @@ void morpthis_app_quit(void);
 // GUI thread.
 bool morpthis_app_background(void);
 
+// Tells the player that the app handled BACK itself by moving to another of its
+// own screens. The chevron and the swipe-back keep the app loaded then; without
+// it they end the app, because a non-game app's BACK is the way out. Call it
+// after loading the parent page on the GUI thread; it is only read for the BACK
+// event that is being delivered.
+void morpthis_app_back_handled(void);
+
 #ifdef __cplusplus
 }
 #endif

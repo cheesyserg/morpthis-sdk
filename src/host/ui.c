@@ -29,6 +29,10 @@ int morpthis_ui_height(void) {
 	return HOST_DISPLAY_HEIGHT;
 }
 
+int morpthis_ui_full_height(void) {
+	return HOST_DISPLAY_HEIGHT;
+}
+
 morpthis_screen_t *morpthis_screen_create(const char *title) {
 	morpthis_screen_t *screen = calloc(1, sizeof(*screen));
 	if (!screen) {
@@ -45,6 +49,10 @@ morpthis_screen_t *morpthis_screen_create(const char *title) {
 		return NULL;
 	}
 	return screen;
+}
+
+morpthis_screen_t *morpthis_screen_create_full(const char *title) {
+	return morpthis_screen_create(title);
 }
 
 void morpthis_screen_set_title(morpthis_screen_t *screen, const char *title) {
@@ -161,6 +169,48 @@ morpthis_widget_t *morpthis_button_create(morpthis_screen_t *screen, const char 
 	return widget;
 }
 
+morpthis_widget_t *morpthis_screen_add_corner_button(morpthis_screen_t *screen, morpthis_icon_t icon,
+												 morpthis_click_cb cb, void *user) {
+	(void)icon;
+	if (!screen) {
+		errno = EINVAL;
+		return NULL;
+	}
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_BUTTON);
+	if (!widget) {
+		return NULL;
+	}
+	widget->click_cb = cb;
+	widget->click_user = user;
+	return widget;
+}
+
+morpthis_widget_t *morpthis_icon_button_create(morpthis_screen_t *screen, morpthis_icon_t icon,
+												 int size, morpthis_click_cb cb, void *user) {
+	(void)size;
+	return morpthis_screen_add_corner_button(screen, icon, cb, user);
+}
+
+void morpthis_widget_set_icon(morpthis_widget_t *widget, morpthis_icon_t icon) {
+	(void)widget;
+	(void)icon;
+}
+
+void morpthis_widget_set_text_size(morpthis_widget_t *widget, int size) {
+	(void)widget;
+	(void)size;
+}
+
+void morpthis_widget_set_text_dim(morpthis_widget_t *widget, bool dim) {
+	(void)widget;
+	(void)dim;
+}
+
+void morpthis_widget_set_text_align(morpthis_widget_t *widget, morpthis_text_align_t align) {
+	(void)widget;
+	(void)align;
+}
+
 morpthis_widget_t *morpthis_list_create(morpthis_screen_t *screen) {
 	return widget_new(screen, HOST_WIDGET_LIST);
 }
@@ -176,6 +226,18 @@ morpthis_widget_t *morpthis_image_create(morpthis_screen_t *screen, const char *
 		return NULL;
 	}
 	return widget;
+}
+
+void morpthis_image_set_source(morpthis_widget_t *image, const char *relative_path) {
+	if (!image || image->kind != HOST_WIDGET_IMAGE) {
+		return;
+	}
+	char *copy = dup_text(relative_path);
+	if (!copy) {
+		return;
+	}
+	free(image->image);
+	image->image = copy;
 }
 
 morpthis_widget_t *morpthis_canvas_create(morpthis_screen_t *screen, int width, int height) {

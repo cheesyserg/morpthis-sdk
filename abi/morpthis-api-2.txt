@@ -1,4 +1,5 @@
 morpthis_app_api_version
+morpthis_app_back_handled
 morpthis_app_background
 morpthis_app_folder
 morpthis_app_id
@@ -17,6 +18,7 @@ morpthis_audio_pause
 morpthis_audio_play
 morpthis_audio_prev
 morpthis_audio_set_playing
+morpthis_audio_set_track
 morpthis_audio_set_volume
 morpthis_audio_state
 morpthis_audio_volume
@@ -42,7 +44,9 @@ morpthis_fs_seek
 morpthis_fs_tell
 morpthis_fs_write
 morpthis_fs_write_all
+morpthis_icon_button_create
 morpthis_image_create
+morpthis_image_set_source
 morpthis_input_set_button_cb
 morpthis_input_set_game_menu
 morpthis_input_set_gameplay
@@ -57,7 +61,9 @@ morpthis_list_set_playing
 morpthis_list_set_select_cb
 morpthis_log
 morpthis_screen_active
+morpthis_screen_add_corner_button
 morpthis_screen_create
+morpthis_screen_create_full
 morpthis_screen_destroy
 morpthis_screen_load
 morpthis_screen_set_title
@@ -65,6 +71,7 @@ morpthis_slider_create
 morpthis_slider_set_value
 morpthis_slider_value
 morpthis_toast
+morpthis_ui_full_height
 morpthis_ui_height
 morpthis_ui_refresh
 morpthis_ui_width
@@ -73,10 +80,14 @@ morpthis_widget_is_enabled
 morpthis_widget_is_visible
 morpthis_widget_raise
 morpthis_widget_set_enabled
+morpthis_widget_set_icon
 morpthis_widget_set_opacity
 morpthis_widget_set_pos
 morpthis_widget_set_rotation
 morpthis_widget_set_size
 morpthis_widget_set_text
+morpthis_widget_set_text_align
+morpthis_widget_set_text_dim
+morpthis_widget_set_text_size
 morpthis_widget_set_visible
 morpthis_widget_text

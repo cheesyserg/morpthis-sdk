@@ -25,13 +25,37 @@ extern "C" {
 typedef struct morpthis_screen morpthis_screen_t;
 typedef struct morpthis_widget morpthis_widget_t;
 
+// The player's own glyphs, for a transport row or a corner action. The set is
+// deliberately small: an app draws the player's controls, not a second icon
+// language.
+typedef enum {
+	MORPTHIS_ICON_PLAY = 0,
+	MORPTHIS_ICON_PAUSE,
+	MORPTHIS_ICON_PREV,
+	MORPTHIS_ICON_NEXT,
+	MORPTHIS_ICON_STOP,
+	MORPTHIS_ICON_QUEUE,
+	MORPTHIS_ICON_MORE,
+	MORPTHIS_ICON_SEARCH,
+	MORPTHIS_ICON_CLOSE,
+} morpthis_icon_t;
+
 typedef void (*morpthis_click_cb)(morpthis_widget_t *widget, void *user);
 typedef void (*morpthis_index_cb)(morpthis_widget_t *widget, int index, void *user);
 typedef void (*morpthis_value_cb)(morpthis_widget_t *widget, int value, void *user);
 
-// The drawable area, in pixels.
+typedef enum {
+	MORPTHIS_TEXT_LEFT = 0,
+	MORPTHIS_TEXT_CENTER,
+	MORPTHIS_TEXT_RIGHT,
+} morpthis_text_align_t;
+
+// The drawable area, in pixels. `full_height` is what a screen made with
+// morpthis_screen_create_full() gets: the panel under the status bar, without
+// the title row.
 int morpthis_ui_width(void);
 int morpthis_ui_height(void);
+int morpthis_ui_full_height(void);
 
 // Screens.
 //
@@ -39,9 +63,24 @@ int morpthis_ui_height(void);
 // the player owns navigation chrome (title bar and back affordance), so the
 // title is the only part an app sets.
 morpthis_screen_t *morpthis_screen_create(const char *title);
+
+// A screen without the title row: its content starts under the status bar and
+// runs to the bottom. The back chevron, the swipe-back and the app's BACK
+// handler remain; there is no title label or player background button (and so
+// no place for morpthis_screen_add_corner_button()). For a now-playing page or
+// a full-bleed view.
+morpthis_screen_t *morpthis_screen_create_full(const char *title);
 void morpthis_screen_set_title(morpthis_screen_t *screen, const char *title);
 void morpthis_screen_load(morpthis_screen_t *screen);
 morpthis_screen_t *morpthis_screen_active(void);
+
+// A page-opening action in the title row, to the left of the player's own
+// background button. The player narrows the title to make room. Game screens
+// have no title row, so this returns NULL there. The returned widget can be
+// destroyed like any other; destroying a screen destroys its buttons too.
+morpthis_widget_t *morpthis_screen_add_corner_button(morpthis_screen_t *screen,
+												 morpthis_icon_t icon,
+												 morpthis_click_cb cb, void *user);
 
 // Destroys the screen and its widgets. Does not quit the app. Destroying the
 // screen that is currently on display requests a quit instead (the player must
@@ -60,6 +99,16 @@ morpthis_widget_t *morpthis_list_create(morpthis_screen_t *screen);
 morpthis_widget_t *morpthis_image_create(morpthis_screen_t *screen, const char *relative_path);
 morpthis_widget_t *morpthis_slider_create(morpthis_screen_t *screen, int min, int max,
 										  int value, morpthis_value_cb cb, void *user);
+
+// A square, transparent button with one of the player's glyphs centred in it.
+// `size` is the hit target in pixels; 0 uses the player's 44/56 px control.
+// The glyph is scaled to fit. Returns NULL when the screen is gone or the
+// player has no such icon.
+morpthis_widget_t *morpthis_icon_button_create(morpthis_screen_t *screen, morpthis_icon_t icon,
+												 int size, morpthis_click_cb cb, void *user);
+
+// Changes an icon next to its text or in an icon button. Other widgets ignore it.
+void morpthis_widget_set_icon(morpthis_widget_t *widget, morpthis_icon_t icon);
 
 // A framebuffer the app draws into: `width` x `height` RGB565 pixels, native
 // endianness, stride = width. The player owns the buffer and it stays valid
@@ -86,6 +135,14 @@ void morpthis_widget_set_pos(morpthis_widget_t *widget, int x, int y);
 void morpthis_widget_set_size(morpthis_widget_t *widget, int width, int height);
 void morpthis_widget_set_visible(morpthis_widget_t *widget, bool visible);
 void morpthis_widget_set_enabled(morpthis_widget_t *widget, bool enabled);
+
+// Labels and buttons: pick one of the player's text sizes (14, 16, 18, 20, 22,
+// 24, 26, 32). Other values snap to the nearest. `dim` uses the player's
+// secondary text colour and follows a theme change; false restores the primary
+// colour. Other widgets ignore both calls.
+void morpthis_widget_set_text_size(morpthis_widget_t *widget, int size);
+void morpthis_widget_set_text_dim(morpthis_widget_t *widget, bool dim);
+void morpthis_widget_set_text_align(morpthis_widget_t *widget, morpthis_text_align_t align);
 
 // Image widgets rotate clockwise around their centre, in whole degrees. The
 // box keeps its size; a turned picture can draw outside it, as the artwork
@@ -126,6 +183,11 @@ void morpthis_list_set_select_cb(morpthis_widget_t *list, morpthis_index_cb cb, 
 // Sliders. The value is clamped to the range given at creation.
 void morpthis_slider_set_value(morpthis_widget_t *slider, int value);
 int morpthis_slider_value(const morpthis_widget_t *slider);
+
+// Image widgets: replace the picture. The path is resolved like an fs read:
+// the app's data folder first, then the package. That is what lets an app
+// download a cover into merp_data/<id>/ and show it. The old pixels are freed.
+void morpthis_image_set_source(morpthis_widget_t *image, const char *relative_path);
 
 // A one-line message in the player's toast area. Copied.
 void morpthis_toast(const char *text);

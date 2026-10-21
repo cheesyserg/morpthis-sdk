@@ -11,9 +11,10 @@ C, versioned and free of LVGL types.
 **Status.** API 2. The headers, the build template, the host runtime and two
 samples are here and tested. The player has the in-process loader and the
 LVGL/input/audio/fs bridges in its `src/gui/apps/`; API 2 adds the 24/32-bit
-PCM output, the status-bar playing flag and background apps. The pinned device
-toolchain is still the missing piece for device CI. See
-[docs/player-integration.md](docs/player-integration.md).
+PCM output, the status-bar playing flag, background apps, published tracks for
+the control centre, the player's icon/screen/text widgets and an app-controlled
+BACK step. The pinned device toolchain is still the missing piece for device CI.
+See [docs/player-integration.md](docs/player-integration.md).
 
 ## Quick start
 

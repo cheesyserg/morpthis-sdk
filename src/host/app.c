@@ -168,6 +168,11 @@ bool morpthis_app_background(void) {
 	return true;
 }
 
+void morpthis_app_back_handled(void) {
+	// The player reads this flag in its back guard. The host runner has no guard
+	// and nothing to keep alive, so there is nothing to do.
+}
+
 bool host_quit_requested(void) {
 	pthread_mutex_lock(&g_lock);
 	bool quit = g_quit;

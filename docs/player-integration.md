@@ -180,10 +180,21 @@ headroom.
   screen so quit can restore the Apps page.
 - Widgets are thin wrappers over the player's existing LVGL objects: a label, a
   button, a list, an image and a slider. The app never sees `lv_obj_t`.
+- `morpthis_screen_create_full()` is the same page without the heading row, for
+  a now-playing page; its height is `morpthis_ui_full_height()`.
+- `morpthis_screen_add_corner_button()` puts one app action in the heading row
+  to the left of the player's background button, and reserves the title width
+  for it. Icons come from the player's own set (`morpthis_icon_t`), and
+  `morpthis_icon_button_create()` is the same glyph on a flat transport target.
+- Text size, dim colour and alignment are the player's, not free values, so an
+  app page reads as part of the same UI.
+- `morpthis_image_set_source()` re-resolves a path through the fs bridge and
+  re-decodes, which is what lets an app show artwork it downloaded into its data
+  folder.
 - Use the player's theme and fonts. Do not read `lv_conf.h` in the app.
 - `morpthis_toast()` uses the player's existing toast path.
 - The display size comes from the panel profile; report it from
-  `morpthis_ui_width()/height()`.
+  `morpthis_ui_width()/height()` and `morpthis_ui_full_height()`.
 
 All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
 `lv_is_initialized()` and, in debug builds, that the caller is the GUI thread.
@@ -195,10 +206,17 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
   `MORPTHIS_BUTTON_BACK`.
 - The player currently delivers `PRESS` for the transport keys (the kernel's
   repeat becomes another press); `BACK` is delivered as `PRESS` then `RELEASE`
-  by the chevron and swipe, followed by a quit. In active gameplay the
-  previous-track and volume keys repeat while held. The SDK allows `REPEAT` and
-  `RELEASE`; if the player gains release events, it can start sending them
-  without an API change.
+  by the chevron and swipe, followed by a quit unless the app calls
+  `morpthis_app_background()` (keep running off screen) or
+  `morpthis_app_back_handled()` (it moved to another of its own screens) in that
+  handler. The guard resets both flags before it dispatches, so one BACK cannot
+  claim a later one. In active gameplay the previous-track and volume keys
+  repeat while held. The SDK allows `REPEAT` and `RELEASE`; if the player gains
+  release events, it can start sending them without an API change.
+- A tap on the control centre's app now-playing card arrives as
+  `MORPTHIS_BUTTON_NOW_PLAYING`, after the app's screen has been brought back
+  from the background. The same card's transport buttons arrive as ordinary
+  `PLAY_PAUSE`, `PREV` and `NEXT`.
 - While a game app says it is in active play (`morpthis_input_set_gameplay`)
   or its menu is open (`morpthis_input_set_game_menu`) and it has a button
   callback, the volume keys are delivered to that callback (including repeats
@@ -220,6 +238,13 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
 - Launching a light app must not pause or stop playback by itself. That is the
   "leave the player's audio alone" rule in `app-sdk.md`. A heavy app stops it by
   declaring its tier; the player does the stop, not the app.
+- `morpthis_audio_set_playing()` updates the status glyph while the app holds
+  the raw output. `morpthis_audio_set_track()` publishes the track the control
+  centre's card shows; the player copies it under its own lock because the app
+  may publish from its mixer thread. Closing the output clears both.
+- When the app's output is active, the player's own transport must not touch the
+  DAC. The local player calls `apphost_release_audio()` before it starts a track,
+  which closes the app's output; the app sees a short write and stops its stream.
 
 ## 9. Filesystem bridge
 
