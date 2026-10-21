@@ -29,7 +29,10 @@ MORPTHIS_DEFINE_API_VERSION();
 
 Put that once at file scope. It defines `int morpthis_app_api_required(void)`,
 which returns `MORPTHIS_APP_API_VERSION` from the header the app compiled with.
-The player treats a missing symbol as API 1 but refuses a newer major.
+The player treats a missing symbol as API 1 but refuses a newer major. API 2
+adds `morpthis_audio_open_ex`, `morpthis_audio_write_pcm`,
+`morpthis_audio_set_playing` and `morpthis_app_background`; the SDK version is
+1.1.0 and the ABI list is `abi/morpthis-api-2.txt`.
 
 An app with threads, a network connection or the raw audio output should also
 export an optional shutdown hook:
@@ -40,10 +43,11 @@ MORPTHIS_EXPORT void morpthis_app_shutdown(void) {
 }
 ```
 
-The player calls it once on the GUI thread before destroying the app's screens
-and `dlclose()`ing it — including when the user confirms USB mass-storage mode
-and the app has to make way for the card to be shared. It must not block and
-must be safe to call twice: an app that already went through
+The player calls it once before destroying the app's screens and `dlclose()`ing
+it — including when the user confirms USB mass-storage mode and the app has to
+make way for the card to be shared. It runs on a worker thread with a
+three-second bound, so it must not touch the UI and must not block on the GUI
+thread. It must be safe to call twice: an app that already went through
 `morpthis_app_quit()` has done its own teardown. A missing symbol is fine; the
 player looks it up with `dlsym()`.
 
@@ -65,10 +69,20 @@ away.
 | `morpthis_app_time_ms()` | Monotonic milliseconds, wraps at 32 bits. |
 | `morpthis_app_post(fn, user)` | Runs on the GUI thread. Any thread may call. |
 | `morpthis_app_quit()` | Destroys the screen and returns to Apps. |
+| `morpthis_app_background()` | Hides the app's screens and keeps it running. |
 
 `morpthis_app_main` must return before the player starts dispatching events.
 A callback that needs to do slow work starts a thread, then posts the result.
 The app owns the arguments until the posted callback runs.
+
+`morpthis_app_background()` leaves the app loaded while the player goes back to
+the Apps page. Its screens stay built and its threads, sockets and raw audio
+output keep running, which is what lets a music app play while the user browses
+the player. A tap on its tile brings the screen back instead of starting a
+second copy. On the device, an app that is playing keeps the on-card package
+mounted, so USB mass storage still asks before closing it. Call it from the GUI
+thread; an app that calls it from its BACK handler is left in the background
+instead of being quit by the chevron.
 
 ## ui.h
 
@@ -123,7 +137,7 @@ callback, as a touch on the page would.
 Destroying the screen that is currently on display requests a quit rather than
 deleting LVGL's active page underneath it. Quit with `morpthis_app_quit()`.
 
-The look is the player's: theme, fonts and scale are not app settings in API 1.
+The look is the player's: theme, fonts and scale are not app settings in API 2.
 
 ## input.h
 
@@ -137,7 +151,8 @@ Buttons: `PLAY_PAUSE`, `NEXT`, `PREV`, `VOLUME_UP`, `VOLUME_DOWN`, `POWER`,
 The physical transport keys are delivered as `PRESS` only: this device reports a
 press and a release at the kernel but the player has no release event to pass
 on. `BACK` is delivered as `PRESS` then `RELEASE` by the chevron and swipe, and
-the player then quits the app. While a game is in active play, the
+the player then quits the app unless the app calls `morpthis_app_background()`
+from its BACK handler. While a game is in active play, the
 previous-track key and the volume keys repeat for as long as they are held;
 call `morpthis_input_set_gameplay(true/false)` as the game enters and leaves
 play, menus and pauses. Call `morpthis_input_set_game_menu(true/false)` while
@@ -163,17 +178,32 @@ quits, unless it is itself a player.
 | `morpthis_audio_volume()` | 0..100. |
 | `morpthis_audio_set_volume(v)` | Clamps. |
 | `morpthis_audio_open(rate, channels, buffer_ms)` | Takes the output; stops playback and radio. |
+| `morpthis_audio_open_ex(rate, channels, bits, buffer_ms)` | The same, at 16, 24 or 32 bits. |
 | `morpthis_audio_write(pcm, frames)` | Signed 16-bit interleaved; blocks at DAC pace. |
+| `morpthis_audio_write_pcm(pcm, frames)` | Any depth opened with `open_ex`; blocks at DAC pace. |
+| `morpthis_audio_set_playing(bool)` | Updates the status-bar play/pause glyph. |
 | `morpthis_audio_close()` | Releases the output; playback stays stopped. |
 
 `morpthis_track_t` has fixed arrays and an `int duration_ms`; its layout is
-part of API 1.
+part of API 2.
 
-The raw output is for an app that mixes its own sound (a game's effects). Open,
+The raw output is for an app that mixes its own sound or streams one. Open,
 write and close on the same thread: a write blocks until the device has room,
 which is what paces a mixer. There is no hardware mixing, so taking the output
 stops whatever the player was playing; the app can close it and call
 `morpthis_audio_play()` to hand it back.
+
+The depth is the app's choice. `16` is interleaved S16. `24` is packed
+S24_3LE, three bytes per sample. `32` is S32, left-justified: a 24-bit source
+takes the top 24 bits, which is what the built-in DAC consumes as S24, so a
+24-bit FLAC written as 32-bit left-justified is bit-perfect. `buffer_ms` is the
+latency asked of the DAC; `0` uses the player's deep frame-based depth (about
+750 ms), which is the right answer for a network stream on this device. Open
+with 32 bits for anything deeper than 16; a device that cannot take S32 is
+retried at 16 by the app, as local playback does.
+
+`morpthis_audio_set_playing()` is only the indicator. Call it when pause or
+resume takes effect, from any thread; closing the output clears it.
 
 ## fs.h
 

@@ -1,4 +1,5 @@
 morpthis_app_api_version
+morpthis_app_background
 morpthis_app_folder
 morpthis_app_id
 morpthis_app_mem_available
@@ -11,13 +12,16 @@ morpthis_audio_close
 morpthis_audio_current
 morpthis_audio_next
 morpthis_audio_open
+morpthis_audio_open_ex
 morpthis_audio_pause
 morpthis_audio_play
 morpthis_audio_prev
+morpthis_audio_set_playing
 morpthis_audio_set_volume
 morpthis_audio_state
 morpthis_audio_volume
 morpthis_audio_write
+morpthis_audio_write_pcm
 morpthis_button_create
 morpthis_canvas_buffer
 morpthis_canvas_create

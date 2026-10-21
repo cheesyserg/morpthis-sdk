@@ -25,7 +25,7 @@ may be exported. The player uses `src/system/apps/morpthis.ld`, a version
 script with `global: morpthis_*; local: *;`, and links with `-rdynamic` on both
 the host and target builds.
 
-`abi/morpthis-api-1.txt` is the complete list. `tools/check-exports.sh` compares
+`abi/morpthis-api-2.txt` is the complete list. `tools/check-exports.sh` compares
 a player binary against it:
 
 ```sh
@@ -139,18 +139,34 @@ On `morpthis_app_quit()`:
 
 1. Set `quitting`; a `gui_post()` queues the teardown so it never deletes the
    screen from inside its own button callback or the swipe animation.
-2. Switch back to the Apps page, then delete the app's screens and widgets.
-3. Detach every posted callback that belongs to this app (`sdk_detach_app()`),
-   so a queued trampoline cannot enter the shared object after `dlclose()`.
-4. Close any files the SDK opened on the app's behalf.
-5. Call the optional `morpthis_app_shutdown` on the GUI thread, while the app
+2. Call the optional `morpthis_app_shutdown` on a worker thread, while the app
    context and screens still exist, so the app can stop its threads and audio.
+   The wait is bounded at three seconds; a shutdown that does not return is
+   force-closed (see below).
+3. Switch back to the Apps page, then delete the app's screens and widgets.
+4. Detach every posted callback that belongs to this app (`sdk_detach_app()`),
+   so a queued trampoline cannot enter the shared object after `dlclose()`.
+5. Close any files the SDK opened on the app's behalf.
 6. `dlclose()` the handle. An app that has no shutdown hook must have stopped
    its own threads already; a thread still inside the player after `dlclose()`
    is a use-after-free the player cannot detect. Keep that rule in the
    app-writing docs.
 7. Unmount the package and release the loop device. Nothing may touch the
    mount point after this.
+
+`morpthis_app_background()` is not a teardown: the screens stay built and the
+shared object and mount stay where they are. Only the screen on top changes,
+so a music app's threads, sockets and raw PCM output keep running while the
+user browses the player. A tap on its tile resumes it: the host puts the same
+screen back.
+
+A shutdown that does not return within the three-second bound is force-closed:
+the player stops waiting, releases the DAC, detaches the app from its screens,
+and leaves the shared object and the package mount mapped. It records one
+zombie slot so the fact is visible, then continues with whatever the user
+asked for (the Apps page, a mass-storage handover, or the next app). Unmapping
+code a stuck thread may still be inside is worse than leaking it for the rest
+of the boot.
 
 There is no process boundary: a fault in the app takes the player down. Say so
 in the Apps page and the docs. That is the accepted cost of fitting in the 18 MB
@@ -255,7 +271,7 @@ Reuse the table in `docs/apps.md` and add the plugin cases:
 | Package cannot be mounted | `name: mount: <errno>` |
 | `dlopen` failed | Falls back to the tool path |
 | `morpthis_app_main` missing | Falls back to the tool path |
-| App requires API 2, player has 1 | "needs a newer player" |
+| App requires API 3, player has 2 | "needs a newer player" |
 | App's `morpthis_app_main` returns non-zero | `name: entry returned N` |
 | App returns without a screen | `name: did not load a screen` |
 | API symbol missing at `dlopen` | Falls back to `execve`, which reports `ENOEXEC`; the `dlerror()` line says why |

@@ -5,13 +5,18 @@
 // SDK can gain source-compatible calls without breaking players that export an
 // older API, and a player refuses an app built for a newer major API.
 #define MORPTHIS_SDK_VERSION_MAJOR 1
-#define MORPTHIS_SDK_VERSION_MINOR 0
+#define MORPTHIS_SDK_VERSION_MINOR 1
 #define MORPTHIS_SDK_VERSION_PATCH 0
-#define MORPTHIS_SDK_VERSION_STRING "1.0.0"
+#define MORPTHIS_SDK_VERSION_STRING "1.1.0"
 
 // The version of the plugin ABI. This is the number the player compares with
 // morpthis_app_api_version() before it calls the entry point.
-#define MORPTHIS_APP_API_VERSION 1
+//
+// 2 adds the hi-res audio output (open_ex/write_pcm), the status-bar playing
+// flag (set_playing) and background operation (morpthis_app_background). An
+// API 1 app still loads on an API 2 player; an API 2 app is refused by an API 1
+// player, which is why it should say min_player 2 in its manifest.
+#define MORPTHIS_APP_API_VERSION 2
 
 // Major and minor packed into one integer, for comparisons.
 #define MORPTHIS_API_VERSION_ENCODE(major, minor) \

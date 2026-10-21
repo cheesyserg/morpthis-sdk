@@ -1,6 +1,7 @@
 #ifndef MORPTHIS_APP_H
 #define MORPTHIS_APP_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -41,14 +42,18 @@ typedef void (*morpthis_post_fn)(void *user);
 MORPTHIS_EXPORT int morpthis_app_main(const morpthis_app_t *app);
 
 // Optional, implemented by an app that owns threads, a network connection or
-// the raw audio output. The player calls it once on the GUI thread before it
-// destroys the app's screens and unloads the shared object, including when it
-// closes the app to hand the card to a computer in USB mass-storage mode.
+// the raw audio output. The player calls it once before it destroys the app's
+// screens and unloads the shared object, including when it closes the app to
+// hand the card to a computer in USB mass-storage mode or to start another app.
 //
-// Stop the app's threads and close anything the app opened; do not block, and
-// do not assume the app's screen is still usable afterwards. A missing symbol
-// is fine: the player checks with dlsym(). The call must be idempotent because
-// an app that already called morpthis_app_quit() has stopped its own work.
+// It runs on a worker thread, not the GUI thread, and the player waits at most
+// a few seconds for it: stop and join the app's threads and close anything the
+// app opened, but do not touch the UI and do not block on the GUI thread. A
+// shutdown that does not return is force-closed: the player releases the audio
+// output and leaves the shared object and its screens in place rather than
+// unmapping code a stuck thread may still be inside. The call must be
+// idempotent because an app that already called morpthis_app_quit() has stopped
+// its own work.
 MORPTHIS_EXPORT void morpthis_app_shutdown(void);
 
 // Implemented by the app. It returns the MORPTHIS_APP_API_VERSION the app was
@@ -103,6 +108,13 @@ void morpthis_app_post(morpthis_post_fn fn, void *user);
 // page. Idempotent. Call it from a GUI-thread callback (a button, a posted
 // function, an input event), not from a worker thread.
 void morpthis_app_quit(void);
+
+// Leaves the app in the background: the player goes back to the Apps page while
+// the app's screens stay built and its threads and raw audio output keep
+// running. This is what lets a music app play while the user browses the
+// player. Returns false when there is no app to background. Call it from the
+// GUI thread.
+bool morpthis_app_background(void);
 
 #ifdef __cplusplus
 }

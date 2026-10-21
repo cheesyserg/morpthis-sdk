@@ -8,9 +8,10 @@ app is a shared object the player loads into its own process and calls on the
 GUI thread; it reaches the device only through this SDK. The public headers are
 C, versioned and free of LVGL types.
 
-**Status.** API 1 foundation. The headers, the build template, the host runtime
-and two samples are here and tested. The player now has the in-process loader
-and the LVGL/input/audio/fs bridges in its `src/gui/apps/`; the pinned device
+**Status.** API 2. The headers, the build template, the host runtime and two
+samples are here and tested. The player has the in-process loader and the
+LVGL/input/audio/fs bridges in its `src/gui/apps/`; API 2 adds the 24/32-bit
+PCM output, the status-bar playing flag and background apps. The pinned device
 toolchain is still the missing piece for device CI. See
 [docs/player-integration.md](docs/player-integration.md).
 
@@ -40,7 +41,7 @@ include/morpthis/      public headers: app, ui, input, audio, fs, log, version
 src/host/              headless host runtime (not shipped on the device)
 samples/               hello, calculator
 app.mk                 the build template an app's Makefile includes
-abi/                   the API 1 symbol list the player must export
+abi/                   the API 2 symbol list the player must export
 tools/                 check-exports.sh
 cmake/                 toolchain file for CMake projects
 toolchain/             Dockerfile and fetch.sh for the pinned compiler
@@ -100,7 +101,7 @@ See [docs/building.md](docs/building.md).
 - **No allocation in the draw path.** The player draws; the app builds widgets.
 - **No LVGL, FreeType or ALSA in the public headers.** A wrapper can change.
 - **Opaque handles.** No struct layout crosses the boundary except the track
-  info struct, whose size is part of API 1.
+  info struct, whose size is part of API 2.
 - **No exceptions across the boundary.** C++ apps catch their own.
 - **A memory budget.** `morpthis_app_mem_available()` reports what the player
   can see; a utility should fit in 4 MB, a game in 8 MB. The manifest's `tier`
@@ -109,7 +110,7 @@ See [docs/building.md](docs/building.md).
   every path against `merp_data/<id>` first and the mounted package second, and
   sends every write to the data folder. Absolute paths, backslashes and `..`
   are refused, exactly as the player's manifest reader does.
-- **No networking, Bluetooth or DAC registers in API 1.** They belong to the
+- **No networking, Bluetooth or DAC registers in API 2.** They belong to the
   player; an app that needs them asks for a later API.
 
 ## Documentation

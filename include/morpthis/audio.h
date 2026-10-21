@@ -55,17 +55,40 @@ bool morpthis_audio_set_volume(int volume);
 
 // Raw PCM output.
 //
-// The stream is signed 16-bit, interleaved, native endianness. `channels` is 1
-// or 2 and `buffer_ms` is the latency to ask the DAC for (0 uses the player's
-// usual deep depth, about 750 ms and independent of its local playback buffer
-// setting; a game wants 30-60). Stops playback and radio first. Returns
-// false when the output cannot be taken (no card, a call already active, or
-// the device is busy).
+// The stream is interleaved and native endianness. `channels` is 1 or 2 and
+// `buffer_ms` is the latency to ask the DAC for (0 uses the player's usual deep
+// depth, about 750 ms and independent of its local playback buffer setting; a
+// game wants 30-60). Stops playback and radio first. Returns false when the
+// output cannot be taken (no card, or the device is busy). A second open with
+// the same terms is a no-op; different terms close the old stream and open a
+// new one, which is what a music app changing sample rate needs.
+//
+// `morpthis_audio_open` is the 16-bit form. The extended form chooses the
+// sample format:
+//
+//   16  signed 16-bit, 2 bytes per sample
+//   24  packed signed 24-bit, 3 bytes per sample (ALSA S24_3LE)
+//   32  signed 32-bit, left-justified: a 24-bit sample occupies the top 24 bits
+//
+// The built-in DAC takes 24-bit samples in its S24 container, so a 24-bit FLAC
+// written as 32-bit left-justified reaches it bit-perfect. A USB DAC is given
+// S32 when it accepts it. Open, write and close from one thread; a write blocks
+// at the rate the DAC plays.
 bool morpthis_audio_open(int rate, int channels, int buffer_ms);
+bool morpthis_audio_open_ex(int rate, int channels, int bits, int buffer_ms);
 
-// Writes `frames` frames, blocking until the device has room. Returns the
-// frames written; 0 when the output is not open or has failed.
+// Writes `frames` frames in the depth selected by open_ex(), or 16-bit after
+// the legacy open(). Returns the frames written; 0 when the output is not open
+// or has failed. `morpthis_audio_write` is the 16-bit convenience and returns 0
+// if the output was opened at another depth; use this call for 24/32-bit data.
+size_t morpthis_audio_write_pcm(const void *pcm, size_t frames);
 size_t morpthis_audio_write(const int16_t *pcm, size_t frames);
+
+// Tells the player whether the app's output is producing sound right now, so
+// the status-bar indicator follows pause and resume. Safe to call from any
+// thread, including the app's mixer and the GUI thread; it is a no-op when no
+// output is open. Closing the output clears it automatically.
+void morpthis_audio_set_playing(bool playing);
 
 // Releases the output. Playback does not resume by itself; the user starts it
 // again. Idempotent.

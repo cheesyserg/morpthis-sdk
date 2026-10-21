@@ -162,6 +162,12 @@ void morpthis_app_quit(void) {
 	pthread_mutex_unlock(&g_lock);
 }
 
+bool morpthis_app_background(void) {
+	// The host runner has no player chrome to go back to; the app simply keeps
+	// running, which is what the device does with its screens still built.
+	return true;
+}
+
 bool host_quit_requested(void) {
 	pthread_mutex_lock(&g_lock);
 	bool quit = g_quit;
