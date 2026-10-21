@@ -105,6 +105,20 @@ bool morpthis_widget_is_enabled(const morpthis_widget_t *widget);
 
 // Lists. Items are copied. The selection callback runs on the GUI thread.
 int morpthis_list_add(morpthis_widget_t *list, const char *text);
+
+// A richer row: `detail` is the dim line under the title (NULL or empty for a
+// single-line row), `icon` is a path relative to the package for the small
+// leading picture (NULL for none), and `chevron` draws the marker used when a
+// row opens another view. The player sizes the row and its fonts to match its
+// own library lists; the app only supplies the text. Returns the item index,
+// or -1.
+int morpthis_list_add_entry(morpthis_widget_t *list, const char *title, const char *detail,
+						const char *icon, bool chevron);
+
+// Marks the row at `index` as the one playing: a short accent bar down its left
+// edge. Pass -1 to clear it. Rows added with morpthis_list_add() take the same
+// mark. The headless host runtime has no display and ignores it.
+void morpthis_list_set_playing(morpthis_widget_t *list, int index);
 void morpthis_list_clear(morpthis_widget_t *list);
 int morpthis_list_count(const morpthis_widget_t *list);
 void morpthis_list_set_select_cb(morpthis_widget_t *list, morpthis_index_cb cb, void *user);

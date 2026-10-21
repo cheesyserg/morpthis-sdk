@@ -107,6 +107,8 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 | `morpthis_widget_raise` | Draws it above its siblings. |
 | `morpthis_widget_destroy` | Removes it from the screen and frees it. |
 | `morpthis_list_add/clear/count` | Items are copied. |
+| `morpthis_list_add_entry` | Title, dim detail, optional package icon, optional chevron. |
+| `morpthis_list_set_playing` | Accent bar on one row, or -1 to clear. |
 | `morpthis_list_set_select_cb` | `(widget, index, user)`. |
 | `morpthis_slider_set_value/value` | Clamped to the creation range. |
 | `morpthis_toast(text)` | One line in the player's toast area. |

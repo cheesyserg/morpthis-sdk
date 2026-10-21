@@ -326,6 +326,20 @@ int morpthis_list_add(morpthis_widget_t *list, const char *text) {
 	return list->item_count++;
 }
 
+int morpthis_list_add_entry(morpthis_widget_t *list, const char *title, const char *detail,
+						const char *icon, bool chevron) {
+	// The host has no display: it records the label a test can click. The rest
+	// of the row is presentation the player owns.
+	(void)icon;
+	(void)chevron;
+	return morpthis_list_add(list, title && title[0] ? title : (detail ? detail : ""));
+}
+
+void morpthis_list_set_playing(morpthis_widget_t *list, int index) {
+	(void)list;
+	(void)index;
+}
+
 void morpthis_list_clear(morpthis_widget_t *list) {
 	if (!list || list->kind != HOST_WIDGET_LIST) {
 		return;
