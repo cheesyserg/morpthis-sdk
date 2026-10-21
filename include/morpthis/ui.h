@@ -51,7 +51,8 @@ void morpthis_screen_destroy(morpthis_screen_t *screen);
 
 // Widgets. A widget belongs to its screen and is destroyed with it unless it is
 // destroyed earlier. `image` takes a path relative to the app folder and is
-// decoded on the GUI thread, so keep it to icons and small pictures.
+// decoded on the GUI thread, so keep it to icons and small pictures; an image is
+// not interactive, and a press on it belongs to the page.
 morpthis_widget_t *morpthis_label_create(morpthis_screen_t *screen, const char *text);
 morpthis_widget_t *morpthis_button_create(morpthis_screen_t *screen, const char *text,
 										  morpthis_click_cb cb, void *user);
@@ -65,7 +66,9 @@ morpthis_widget_t *morpthis_slider_create(morpthis_screen_t *screen, int min, in
 // until the widget is destroyed. After changing pixels, invalidate the changed
 // rectangle (relative to the canvas) so the player redraws exactly that part.
 // This is the path for a game that renders its own frames; an app that only
-// moves pictures should use image widgets instead.
+// moves pictures should use image widgets instead. The canvas does not take
+// presses: a touch on it reaches the app's touch callback, like a touch on the
+// page itself.
 morpthis_widget_t *morpthis_canvas_create(morpthis_screen_t *screen, int width, int height);
 uint16_t *morpthis_canvas_buffer(morpthis_widget_t *canvas);
 void morpthis_canvas_invalidate(morpthis_widget_t *canvas, int x, int y, int width, int height);

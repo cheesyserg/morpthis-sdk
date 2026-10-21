@@ -101,7 +101,9 @@ that part of the canvas on the next refresh. A game that redraws its own frames
 uses this instead of moving widgets: it is one image draw per changed area, not
 a layout pass over a tree. If the app has its own clock, it calls
 `morpthis_ui_refresh()` after the invalidations so the panel shows that frame
-in the same pass, instead of waiting for the display timer's phase.
+in the same pass, instead of waiting for the display timer's phase. The canvas
+and image widgets do not take presses: a touch on them reaches the app's touch
+callback, as a touch on the page would.
 
 Destroying the screen that is currently on display requests a quit rather than
 deleting LVGL's active page underneath it. Quit with `morpthis_app_quit()`.
