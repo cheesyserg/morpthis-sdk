@@ -91,9 +91,11 @@ else
 MORPTHIS_CC := $(CROSS_CC)
 MORPTHIS_CXX := $(CROSS_CXX)
 MORPTHIS_CFLAGS := -O2 -g -Wall -Wextra -std=c11 -D_FILE_OFFSET_BITS=64 \
+	-D_POSIX_C_SOURCE=200809L \
 	-march=mips32r2 -mno-madd4 -fvisibility=hidden \
 	-I$(MORPTHIS_SDK)/include -I. $(APP_INCLUDES) $(APP_CFLAGS)
 MORPTHIS_CXXFLAGS := -O2 -g -Wall -Wextra -std=c++17 -D_FILE_OFFSET_BITS=64 \
+	-D_POSIX_C_SOURCE=200809L \
 	-march=mips32r2 -mno-madd4 -fvisibility=hidden \
 	-I$(MORPTHIS_SDK)/include -I. $(APP_INCLUDES) $(APP_CFLAGS)
 ifeq ($(APP_KIND),plugin)
