@@ -96,10 +96,17 @@ calculator.pkgmerp
 
 The player mounts it read-only through a loop device and runs the entry from
 the mount point; nothing is extracted to the card. The image is deliberately
-uncompressed (`mksquashfs -noI -noD -noF -noX -comp gzip`): the kernel then serves file
-data straight from the card through the page cache, with no decompression
-workspace, at the cost of a larger file. On a card with room, that is the right
-trade for the 64 MB player.
+uncompressed (`mksquashfs -noI -noD -noF -noX`): the kernel then serves file
+data straight from the card through the page cache, at the cost of a larger
+file. On a card with room, that is the right trade for the 64 MB player.
+
+The superblock must still name a compression algorithm, and the device kernel
+has to have been built with that decompressor even when every block is stored
+uncompressed. The stock rootfs is LZO, so packages use `-comp lzo`; zlib is not
+in that kernel, and a `-comp gzip` image fails with `Filesystem uses "zlib"
+compression. This is not supported`. `-b 4096` keeps the driver's one-block
+decompressor input buffer small (4 KB instead of 128 KB); no block in the image
+is actually compressed.
 
 `make stage` in `app.mk` writes the folder to `build/device/app/<id>/`. The apps
 repository's `tools/package.sh` validates the manifest, stages the build and

@@ -84,7 +84,7 @@ jobs:
           for dir in samples/*/; do
             id=$(basename "$dir")
             mksquashfs "$dir/build/device/app/$id" "dist/$id.pkgmerp" \
-              -noappend -noI -noD -noF -noX -comp gzip -all-root
+              -noappend -noI -noD -noF -noX -comp lzo -b 4096 -all-root
           done
 
       - name: Upload the sample packages
