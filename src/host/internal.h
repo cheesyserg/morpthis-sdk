@@ -32,13 +32,15 @@ typedef enum {
 	HOST_WIDGET_BUTTON,
 	HOST_WIDGET_LIST,
 	HOST_WIDGET_IMAGE,
-	HOST_WIDGET_SLIDER
+	HOST_WIDGET_SLIDER,
+	HOST_WIDGET_CANVAS
 } host_widget_kind_t;
 
 struct morpthis_widget {
 	host_widget_kind_t kind;
 	char *text;
 	char *image;
+	uint16_t *pixels;
 
 	int x;
 	int y;

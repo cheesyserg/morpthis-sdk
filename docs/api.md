@@ -66,10 +66,13 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 | `morpthis_screen_load(screen)` | Shows it; the previous screen stays alive. |
 | `morpthis_screen_active()` | The loaded screen, or NULL. |
 | `morpthis_screen_destroy(screen)` | Frees the screen and its widgets. |
-| `*_create(screen, ...)` | label, button, list, image, slider. |
+| `*_create(screen, ...)` | label, button, list, image, slider, canvas. |
 | `morpthis_widget_set_text/text` | Labels and buttons. |
 | `morpthis_widget_set_pos/size` | Absolute layout in pixels. |
 | `morpthis_widget_set_visible/enabled` | Disabled widgets do not fire. |
+| `morpthis_canvas_buffer(canvas)` | The app's RGB565 pixels; stride = width. |
+| `morpthis_canvas_invalidate(canvas, x, y, w, h)` | Redraws that part on the next refresh. |
+| `morpthis_ui_refresh()` | Draws the invalidated parts now. |
 | `morpthis_widget_set_rotation` | Image widgets, clockwise, around the centre. |
 | `morpthis_widget_set_opacity` | 0..100, the widget and its children. |
 | `morpthis_widget_raise` | Draws it above its siblings. |
@@ -90,6 +93,15 @@ Rotation is for images and turns around the widget's centre; the box keeps its
 size, so a turned picture may draw outside it. Opacity and `raise` are what an
 overlay uses: a full-screen image at 0..100 percent, brought to the front when
 it is shown, is a hit flash or a fade.
+
+`morpthis_canvas_create()` is the other way to draw: a framebuffer the app owns,
+RGB565, `width` x `height`, stride = width. The app writes pixels and calls
+`morpthis_canvas_invalidate()` for the rectangle it changed; the player blits
+that part of the canvas on the next refresh. A game that redraws its own frames
+uses this instead of moving widgets: it is one image draw per changed area, not
+a layout pass over a tree. If the app has its own clock, it calls
+`morpthis_ui_refresh()` after the invalidations so the panel shows that frame
+in the same pass, instead of waiting for the display timer's phase.
 
 Destroying the screen that is currently on display requests a quit rather than
 deleting LVGL's active page underneath it. Quit with `morpthis_app_quit()`.
@@ -184,7 +196,8 @@ The host runner reads `MORPTHIS_HOST_SCRIPT`, a semicolon-separated list:
 | --- | --- |
 | `click:<label>` | Clicks the visible button with that exact text. |
 | `press:<button>` | Dispatches press and release for `play`, `next`, `prev`, `volup`, `voldown`, `power` or `back`. |
-| `sleep:<ms>` | Runs the posted queue after waiting. |
+| `touch:<x>,<y>` | Dispatches touch down and up at a display pixel. |
+| `sleep:<ms>` | Waits, running the posted queue as it goes, as the player's loop would. |
 | `quit` | Calls `morpthis_app_quit()`. |
 
 A missing button or an unknown command makes the runner fail with status 2, so

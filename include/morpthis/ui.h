@@ -2,6 +2,7 @@
 #define MORPTHIS_UI_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,6 +59,22 @@ morpthis_widget_t *morpthis_list_create(morpthis_screen_t *screen);
 morpthis_widget_t *morpthis_image_create(morpthis_screen_t *screen, const char *relative_path);
 morpthis_widget_t *morpthis_slider_create(morpthis_screen_t *screen, int min, int max,
 										  int value, morpthis_value_cb cb, void *user);
+
+// A framebuffer the app draws into: `width` x `height` RGB565 pixels, native
+// endianness, stride = width. The player owns the buffer and it stays valid
+// until the widget is destroyed. After changing pixels, invalidate the changed
+// rectangle (relative to the canvas) so the player redraws exactly that part.
+// This is the path for a game that renders its own frames; an app that only
+// moves pictures should use image widgets instead.
+morpthis_widget_t *morpthis_canvas_create(morpthis_screen_t *screen, int width, int height);
+uint16_t *morpthis_canvas_buffer(morpthis_widget_t *canvas);
+void morpthis_canvas_invalidate(morpthis_widget_t *canvas, int x, int y, int width, int height);
+
+// Draws what has been invalidated, now, rather than on the player's next
+// refresh. A game that redraws on its own clock calls this once after its
+// invalidations, so the panel shows the frame it just drew in the same pass.
+// Does nothing when nothing is invalidated. GUI thread only.
+void morpthis_ui_refresh(void);
 
 void morpthis_widget_destroy(morpthis_widget_t *widget);
 void morpthis_widget_set_text(morpthis_widget_t *widget, const char *text);

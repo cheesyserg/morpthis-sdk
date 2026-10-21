@@ -4,6 +4,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -65,6 +66,17 @@ static bool run_command(char *command) {
 		return host_ui_click_label(label);
 	}
 
+	if (strncmp(command, "touch:", 6) == 0) {
+		int x = 0, y = 0;
+		if (sscanf(command + 6, " %d , %d", &x, &y) != 2) {
+			morpthis_loge("host", "script: bad touch \"%s\"", command);
+			return false;
+		}
+		host_input_dispatch_touch(MORPTHIS_TOUCH_DOWN, x, y);
+		host_input_dispatch_touch(MORPTHIS_TOUCH_UP, x, y);
+		return true;
+	}
+
 	if (strncmp(command, "press:", 6) == 0) {
 		morpthis_button_t button;
 		char *name = trim(command + 6);
@@ -84,8 +96,15 @@ static bool run_command(char *command) {
 			morpthis_loge("host", "script: bad sleep \"%s\"", command);
 			return false;
 		}
-		sleep_ms(ms);
-		host_run_posted();
+		// The player's loop keeps running while time passes, so a game's clock
+		// advances during a sleep too. Pump the posted queue as it goes rather
+		// than only at the end, or a screen that animates would show one frame.
+		while (ms > 0 && !host_quit_requested()) {
+			long slice = ms > 5 ? 5 : ms;
+			sleep_ms(slice);
+			host_run_posted();
+			ms -= slice;
+		}
 		return true;
 	}
 

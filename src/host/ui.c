@@ -96,6 +96,7 @@ void morpthis_widget_destroy(morpthis_widget_t *widget) {
 	free(widget->items);
 	free(widget->text);
 	free(widget->image);
+	free(widget->pixels);
 	free(widget);
 }
 
@@ -175,6 +176,41 @@ morpthis_widget_t *morpthis_image_create(morpthis_screen_t *screen, const char *
 		return NULL;
 	}
 	return widget;
+}
+
+morpthis_widget_t *morpthis_canvas_create(morpthis_screen_t *screen, int width, int height) {
+	if (width <= 0 || height <= 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_CANVAS);
+	if (!widget) {
+		return NULL;
+	}
+	widget->pixels = calloc((size_t)width * (size_t)height, sizeof(uint16_t));
+	if (!widget->pixels) {
+		morpthis_widget_destroy(widget);
+		return NULL;
+	}
+	widget->width = width;
+	widget->height = height;
+	return widget;
+}
+
+uint16_t *morpthis_canvas_buffer(morpthis_widget_t *canvas) {
+	return canvas && canvas->kind == HOST_WIDGET_CANVAS ? canvas->pixels : NULL;
+}
+
+void morpthis_canvas_invalidate(morpthis_widget_t *canvas, int x, int y, int width, int height) {
+	(void)canvas;
+	(void)x;
+	(void)y;
+	(void)width;
+	(void)height;
+}
+
+void morpthis_ui_refresh(void) {
+	// The host's canvas is the frame the app just wrote: nothing to flush.
 }
 
 static int clamp_int(int value, int min, int max) {

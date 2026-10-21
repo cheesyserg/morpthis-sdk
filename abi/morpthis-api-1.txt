@@ -19,6 +19,9 @@ morpthis_audio_state
 morpthis_audio_volume
 morpthis_audio_write
 morpthis_button_create
+morpthis_canvas_buffer
+morpthis_canvas_create
+morpthis_canvas_invalidate
 morpthis_fs_app_folder
 morpthis_fs_card_root
 morpthis_fs_close
@@ -53,6 +56,7 @@ morpthis_slider_set_value
 morpthis_slider_value
 morpthis_toast
 morpthis_ui_height
+morpthis_ui_refresh
 morpthis_ui_width
 morpthis_widget_destroy
 morpthis_widget_is_enabled
