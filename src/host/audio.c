@@ -58,6 +58,37 @@ bool morpthis_audio_set_volume(int volume) {
 	return true;
 }
 
+static bool g_eq_enabled;
+static int g_eq[MORPTHIS_EQ_BANDS];
+
+bool morpthis_audio_eq_enabled(void) { return g_eq_enabled; }
+
+void morpthis_audio_set_eq_enabled(bool enabled) { g_eq_enabled = enabled; }
+
+int morpthis_audio_eq_band(int band) {
+	return band >= 0 && band < MORPTHIS_EQ_BANDS ? g_eq[band] : 0;
+}
+
+bool morpthis_audio_set_eq_band(int band, int gain_db) {
+	if (band < 0 || band >= MORPTHIS_EQ_BANDS) {
+		return false;
+	}
+	if (gain_db < -12) {
+		gain_db = -12;
+	}
+	if (gain_db > 12) {
+		gain_db = 12;
+	}
+	g_eq[band] = gain_db;
+	return true;
+}
+
+void morpthis_audio_eq_reset(void) {
+	for (int i = 0; i < MORPTHIS_EQ_BANDS; i++) {
+		g_eq[i] = 0;
+	}
+}
+
 static bool valid_output(int rate, int channels, int bits, int buffer_ms) {
 	return rate > 0 && channels >= 1 && channels <= 2 && buffer_ms >= 0 &&
 		   (bits == 16 || bits == 24 || bits == 32);

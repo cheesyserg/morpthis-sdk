@@ -1,10 +1,10 @@
 #!/bin/sh
-# Checks that a player binary exports exactly the API 2 symbols and no other
+# Checks that a player binary exports exactly the API 3 symbols and no other
 # morpthis_* symbol. Run it on the stripped or unstripped player:
 #
 #     CROSS_NM=mipsel-rockbox-linux-gnu-nm tools/check-exports.sh morpthis_player
 #
-# The expected list is abi/morpthis-api-2.txt. Extra morpthis_* symbols are a
+# The expected list is abi/morpthis-api-3.txt. Extra morpthis_* symbols are a
 # leak of player internals; missing ones mean a plugin will fail to load.
 
 set -eu
@@ -27,7 +27,7 @@ if ! command -v "$NM" >/dev/null 2>&1; then
 fi
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-expected=$here/../abi/morpthis-api-2.txt
+expected=$here/../abi/morpthis-api-3.txt
 actual=${TMPDIR:-/tmp}/morpthis-exports.$$
 
 trap 'rm -f "$actual"' EXIT HUP INT TERM
@@ -50,13 +50,13 @@ if [ -n "$missing" ]; then
 fi
 
 if [ -n "$extra" ]; then
-	echo "check-exports: the player exports symbols outside API 2:" >&2
+	echo "check-exports: the player exports symbols outside API 3:" >&2
 	echo "$extra" | sed 's/^/  /' >&2
 	status=1
 fi
 
 if [ "$status" -eq 0 ]; then
-	echo "check-exports: API 2 matches."
+	echo "check-exports: API 3 matches."
 fi
 
 exit "$status"

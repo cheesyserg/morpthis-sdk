@@ -25,7 +25,7 @@ may be exported. The player uses `src/system/apps/morpthis.ld`, a version
 script with `global: morpthis_*; local: *;`, and links with `-rdynamic` on both
 the host and target builds.
 
-`abi/morpthis-api-2.txt` is the complete list. `tools/check-exports.sh` compares
+`abi/morpthis-api-3.txt` is the complete list. `tools/check-exports.sh` compares
 a player binary against it:
 
 ```sh

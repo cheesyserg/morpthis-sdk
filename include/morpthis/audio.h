@@ -53,6 +53,19 @@ bool morpthis_audio_prev(void);
 int morpthis_audio_volume(void);
 bool morpthis_audio_set_volume(int volume);
 
+// The player's 10-band graphic equalizer, the one under Settings > Sound.
+// Gains are whole dB from -12 to +12. The calls are global to the player, not
+// per app, and persist exactly as the Settings page does. A band outside the
+// range is clamped; an invalid band index makes the getter return 0 and the
+// setter fail.
+#define MORPTHIS_EQ_BANDS 10
+
+bool morpthis_audio_eq_enabled(void);
+void morpthis_audio_set_eq_enabled(bool enabled);
+int morpthis_audio_eq_band(int band);
+bool morpthis_audio_set_eq_band(int band, int gain_db);
+void morpthis_audio_eq_reset(void);
+
 // Raw PCM output.
 //
 // The stream is interleaved and native endianness. `channels` is 1 or 2 and

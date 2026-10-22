@@ -5,18 +5,28 @@
 // SDK can gain source-compatible calls without breaking players that export an
 // older API, and a player refuses an app built for a newer major API.
 #define MORPTHIS_SDK_VERSION_MAJOR 1
-#define MORPTHIS_SDK_VERSION_MINOR 1
+#define MORPTHIS_SDK_VERSION_MINOR 2
 #define MORPTHIS_SDK_VERSION_PATCH 0
-#define MORPTHIS_SDK_VERSION_STRING "1.1.0"
+#define MORPTHIS_SDK_VERSION_STRING "1.2.0"
 
 // The version of the plugin ABI. This is the number the player compares with
 // morpthis_app_api_version() before it calls the entry point.
 //
 // 2 adds the hi-res audio output (open_ex/write_pcm), the status-bar playing
-// flag (set_playing) and background operation (morpthis_app_background). An
-// API 1 app still loads on an API 2 player; an API 2 app is refused by an API 1
-// player, which is why it should say min_player 2 in its manifest.
-#define MORPTHIS_APP_API_VERSION 2
+// flag (set_playing) and background operation (morpthis_app_background).
+//
+// 3 gives an app the player's own services instead of only its own surface:
+// local playback and queue control (playback.h), the equalizer, the music
+// library, favourites and playlists (library.h), the HTTP/TLS client (net.h),
+// device status, brightness, the clock, USB and the settings store (system.h),
+// Wi-Fi and Bluetooth (wireless.h), absolute-path filesystem access and
+// directory walks (fs.h), the player's theme, status bar, modal dialogs, text
+// entry and full widget set (ui.h), and app background state
+// (morpthis_app_is_background).
+//
+// An API 2 app still loads on an API 3 player; an API 3 app is refused by an
+// older player, which is why it should say min_player 3 in its manifest.
+#define MORPTHIS_APP_API_VERSION 3
 
 // Major and minor packed into one integer, for comparisons.
 #define MORPTHIS_API_VERSION_ENCODE(major, minor) \

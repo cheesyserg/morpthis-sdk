@@ -1,11 +1,13 @@
 #include "internal.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 // The same rule the player applies to a manifest: relative to the app folder,
 // no absolute path, no backslash and no "..". A path from an app is trusted no
@@ -381,4 +383,194 @@ int morpthis_fs_mkdir(const char *relative) {
 	// Creating the data directory shadows a package directory of the same name
 	// and gives the app somewhere to add files.
 	return mkdir(data_path, 0755);
+}
+
+// ---------------------------------------------------------------------------
+// Full access
+// ---------------------------------------------------------------------------
+
+static const char *abs_mode(morpthis_fs_mode_t mode) {
+	switch (mode) {
+	case MORPTHIS_FS_READ:
+		return "rb";
+	case MORPTHIS_FS_WRITE:
+		return "wb";
+	case MORPTHIS_FS_APPEND:
+		return "ab";
+	case MORPTHIS_FS_READ_WRITE:
+		return "r+b";
+	default:
+		return NULL;
+	}
+}
+
+morpthis_file_t *morpthis_fs_open_absolute(const char *path, morpthis_fs_mode_t mode) {
+	if (!path || path[0] != '/') {
+		errno = EINVAL;
+		return NULL;
+	}
+	const char *flags = abs_mode(mode);
+	if (!flags) {
+		errno = EINVAL;
+		return NULL;
+	}
+	FILE *fp = fopen(path, flags);
+	if (!fp) {
+		return NULL;
+	}
+	morpthis_file_t *file = calloc(1, sizeof(*file));
+	if (!file) {
+		fclose(fp);
+		return NULL;
+	}
+	file->fp = fp;
+	return file;
+}
+
+bool morpthis_fs_exists_absolute(const char *path) { return path && path[0] == '/' && path_exists(path); }
+
+bool morpthis_fs_write_all_absolute(const char *path, const void *buffer, size_t size) {
+	morpthis_file_t *file = morpthis_fs_open_absolute(path, MORPTHIS_FS_WRITE);
+	if (!file) {
+		return false;
+	}
+	size_t written = morpthis_fs_write(file, buffer, size);
+	int close_rc = morpthis_fs_close(file);
+	return written == size && close_rc == 0;
+}
+
+long morpthis_fs_read_all_absolute(const char *path, char *buffer, size_t max, size_t *out_size) {
+	if (!buffer || max == 0) {
+		errno = EINVAL;
+		return -1;
+	}
+	morpthis_file_t *file = morpthis_fs_open_absolute(path, MORPTHIS_FS_READ);
+	if (!file) {
+		return -1;
+	}
+	size_t total = 0;
+	while (total < max - 1) {
+		size_t got = morpthis_fs_read(file, buffer + total, max - 1 - total);
+		total += got;
+		if (got == 0) {
+			break;
+		}
+	}
+	bool failed = ferror(file->fp) != 0;
+	int close_rc = morpthis_fs_close(file);
+	if (out_size) {
+		*out_size = total;
+	}
+	buffer[total] = '\0';
+	if (failed || close_rc != 0) {
+		return -1;
+	}
+	return (long)total;
+}
+
+int morpthis_fs_remove_absolute(const char *path) {
+	if (!path || path[0] != '/') {
+		errno = EINVAL;
+		return -1;
+	}
+	return remove(path);
+}
+
+int morpthis_fs_rmdir_absolute(const char *path) {
+	if (!path || path[0] != '/') {
+		errno = EINVAL;
+		return -1;
+	}
+	return rmdir(path);
+}
+
+int morpthis_fs_rename_absolute(const char *from, const char *to) {
+	if (!from || !to || from[0] != '/' || to[0] != '/') {
+		errno = EINVAL;
+		return -1;
+	}
+	return rename(from, to);
+}
+
+int morpthis_fs_mkdir_absolute(const char *path) {
+	if (!path || path[0] != '/') {
+		errno = EINVAL;
+		return -1;
+	}
+	return mkdir(path, 0755);
+}
+
+bool morpthis_fs_stat_absolute(const char *path, morpthis_fs_stat_t *out) {
+	if (!path || path[0] != '/' || !out) {
+		errno = EINVAL;
+		return false;
+	}
+	struct stat st;
+	if (stat(path, &st) != 0) {
+		return false;
+	}
+	out->size = (uint64_t)st.st_size;
+	out->mtime = (int64_t)st.st_mtime;
+	out->is_dir = S_ISDIR(st.st_mode);
+	return true;
+}
+
+struct morpthis_dir {
+	DIR *dir;
+	char base[HOST_PATH_MAX];
+	char name[256];
+	bool is_dir;
+};
+
+morpthis_dir_t *morpthis_fs_open_dir(const char *absolute_path) {
+	if (!absolute_path || absolute_path[0] != '/') {
+		errno = EINVAL;
+		return NULL;
+	}
+	DIR *dir = opendir(absolute_path);
+	if (!dir) {
+		return NULL;
+	}
+	morpthis_dir_t *handle = calloc(1, sizeof(*handle));
+	if (!handle) {
+		closedir(dir);
+		return NULL;
+	}
+	handle->dir = dir;
+	snprintf(handle->base, sizeof(handle->base), "%s", absolute_path);
+	return handle;
+}
+
+const char *morpthis_fs_dir_next(morpthis_dir_t *handle) {
+	if (!handle || !handle->dir) {
+		return NULL;
+	}
+	struct dirent *entry;
+	while ((entry = readdir(handle->dir)) != NULL) {
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+			continue;
+		}
+		snprintf(handle->name, sizeof(handle->name), "%s", entry->d_name);
+		char path[HOST_PATH_MAX + sizeof(handle->name)];
+		if (snprintf(path, sizeof(path), "%s/%s", handle->base, handle->name) < (int)sizeof(path)) {
+			struct stat st;
+			handle->is_dir = stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+		} else {
+			handle->is_dir = false;
+		}
+		return handle->name;
+	}
+	return NULL;
+}
+
+bool morpthis_fs_dir_is_dir(const morpthis_dir_t *handle) { return handle ? handle->is_dir : false; }
+
+void morpthis_fs_dir_close(morpthis_dir_t *handle) {
+	if (!handle) {
+		return;
+	}
+	if (handle->dir) {
+		closedir(handle->dir);
+	}
+	free(handle);
 }

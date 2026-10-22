@@ -21,9 +21,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Symbol list is sorted and unique
         run: |
-          sort -c abi/morpthis-api-2.txt
-          test "$(sort -u abi/morpthis-api-2.txt | wc -l)" = \
-               "$(wc -l < abi/morpthis-api-2.txt)"
+          sort -c abi/morpthis-api-3.txt
+          test "$(sort -u abi/morpthis-api-3.txt | wc -l)" = \
+               "$(wc -l < abi/morpthis-api-3.txt)"
       - name: Shell syntax
         run: |
           sh -n toolchain/fetch.sh

@@ -116,6 +116,11 @@ void morpthis_app_quit(void);
 // GUI thread.
 bool morpthis_app_background(void);
 
+// True while the app is in the background: it was put away with
+// morpthis_app_background(), its screens are still built and its threads and
+// output keep running. False while one of its screens is on display.
+bool morpthis_app_is_background(void);
+
 // Tells the player that the app handled BACK itself by moving to another of its
 // own screens. The chevron and the swipe-back keep the app loaded then; without
 // it they end the app, because a non-game app's BACK is the way out. Call it

@@ -104,6 +104,7 @@ void morpthis_widget_destroy(morpthis_widget_t *widget) {
 	free(widget->items);
 	free(widget->text);
 	free(widget->image);
+	free(widget->value_text);
 	free(widget->pixels);
 	free(widget);
 }
@@ -329,11 +330,21 @@ morpthis_widget_t *morpthis_slider_create(morpthis_screen_t *screen, int min, in
 }
 
 void morpthis_widget_set_text(morpthis_widget_t *widget, const char *text) {
-	if (!widget || (widget->kind != HOST_WIDGET_LABEL && widget->kind != HOST_WIDGET_BUTTON)) {
+	if (!widget) {
 		return;
 	}
 	char *copy = dup_text(text);
 	if (!copy) {
+		return;
+	}
+	if (widget->kind == HOST_WIDGET_TEXT_INPUT) {
+		free(widget->image);
+		widget->image = copy;
+		return;
+	}
+	if (widget->kind != HOST_WIDGET_LABEL && widget->kind != HOST_WIDGET_BUTTON &&
+		widget->kind != HOST_WIDGET_SETTINGS_ROW) {
+		free(copy);
 		return;
 	}
 	free(widget->text);
@@ -341,7 +352,13 @@ void morpthis_widget_set_text(morpthis_widget_t *widget, const char *text) {
 }
 
 const char *morpthis_widget_text(const morpthis_widget_t *widget) {
-	return widget && widget->text ? widget->text : "";
+	if (!widget) {
+		return "";
+	}
+	if (widget->kind == HOST_WIDGET_TEXT_INPUT) {
+		return widget->image ? widget->image : "";
+	}
+	return widget->text ? widget->text : "";
 }
 
 void morpthis_widget_set_pos(morpthis_widget_t *widget, int x, int y) {
@@ -356,8 +373,8 @@ void morpthis_widget_set_size(morpthis_widget_t *widget, int width, int height) 
 	if (!widget) {
 		return;
 	}
-	widget->width = width < 0 ? 0 : width;
-	widget->height = height < 0 ? 0 : height;
+	widget->width = width == MORPTHIS_SIZE_CONTENT || width < 0 ? 0 : width;
+	widget->height = height == MORPTHIS_SIZE_CONTENT || height < 0 ? 0 : height;
 }
 
 void morpthis_widget_set_visible(morpthis_widget_t *widget, bool visible) {
@@ -476,6 +493,64 @@ void morpthis_toast(const char *text) {
 	morpthis_logi("ui", "toast: %s", text ? text : "");
 }
 
+// ---------------------------------------------------------------------------
+// Theme, chrome and dialogs
+// ---------------------------------------------------------------------------
+
+static bool g_status_bar_visible = true;
+
+void morpthis_ui_theme(morpthis_theme_t *out) {
+	if (!out) {
+		return;
+	}
+	out->screen_bg = 0x000000;
+	out->surface = 0x1e1e1e;
+	out->panel = 0x111111;
+	out->cover_bg = 0x202020;
+	out->text_primary = 0xffffff;
+	out->text_secondary = 0xaaaaaa;
+	out->accent = 0x4a90d9;
+	out->dark = true;
+}
+
+bool morpthis_ui_set_dark(bool dark) {
+	(void)dark;
+	return true;
+}
+
+bool morpthis_ui_set_accent(int index) { return index >= 0 && index < 12; }
+
+void morpthis_ui_set_status_bar_visible(bool visible) { g_status_bar_visible = visible; }
+
+bool morpthis_ui_status_bar_visible(void) { return g_status_bar_visible; }
+
+bool morpthis_ui_confirm(const char *title, const char *message, const char *ok_label,
+					 morpthis_action_cb cb, void *user) {
+	// No display, no card. A host test that needs the accepted path calls its own
+	// callback; returning false is the documented headless answer, like menus.
+	(void)title;
+	(void)message;
+	(void)ok_label;
+	(void)cb;
+	(void)user;
+	return false;
+}
+
+void morpthis_ui_notice(const char *title, const char *message) {
+	(void)title;
+	(void)message;
+}
+
+bool morpthis_ui_prompt_text(const char *title, const char *initial, bool password,
+						 morpthis_text_cb cb, void *user) {
+	(void)title;
+	(void)initial;
+	(void)password;
+	(void)cb;
+	(void)user;
+	return false;
+}
+
 bool host_ui_click_label(const char *label) {
 	if (!label || !label[0]) {
 		errno = EINVAL;
@@ -499,4 +574,390 @@ bool host_ui_click_label(const char *label) {
 	morpthis_logw("host", "click \"%s\": no such button on \"%s\"", label,
 				  g_active->title ? g_active->title : "");
 	return false;
+}
+
+// ---------------------------------------------------------------------------
+// API 3 widgets
+// ---------------------------------------------------------------------------
+
+morpthis_widget_t *morpthis_switch_create(morpthis_screen_t *screen, bool on,
+										  morpthis_value_cb cb, void *user) {
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_SWITCH);
+	if (!widget) {
+		return NULL;
+	}
+	widget->value = on ? 1 : 0;
+	widget->value_cb = cb;
+	widget->value_user = user;
+	return widget;
+}
+
+bool morpthis_switch_is_on(const morpthis_widget_t *widget) {
+	return widget && widget->kind == HOST_WIDGET_SWITCH && widget->value != 0;
+}
+
+void morpthis_switch_set_on(morpthis_widget_t *widget, bool on) {
+	if (widget && widget->kind == HOST_WIDGET_SWITCH) {
+		widget->value = on ? 1 : 0;
+	}
+}
+
+morpthis_widget_t *morpthis_progress_create(morpthis_screen_t *screen, int min, int max, int value) {
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_PROGRESS);
+	if (!widget) {
+		return NULL;
+	}
+	morpthis_progress_set_range(widget, min, max);
+	morpthis_progress_set_value(widget, value);
+	return widget;
+}
+
+void morpthis_progress_set_value(morpthis_widget_t *widget, int value) {
+	if (!widget || widget->kind != HOST_WIDGET_PROGRESS) {
+		return;
+	}
+	if (value < widget->min) {
+		value = widget->min;
+	}
+	if (value > widget->max) {
+		value = widget->max;
+	}
+	widget->value = value;
+}
+
+int morpthis_progress_value(const morpthis_widget_t *widget) {
+	return widget && widget->kind == HOST_WIDGET_PROGRESS ? widget->value : 0;
+}
+
+void morpthis_progress_set_range(morpthis_widget_t *widget, int min, int max) {
+	if (!widget || widget->kind != HOST_WIDGET_PROGRESS) {
+		return;
+	}
+	if (max < min) {
+		int swap = min;
+		min = max;
+		max = swap;
+	}
+	widget->min = min;
+	widget->max = max;
+	morpthis_progress_set_value(widget, widget->value);
+}
+
+morpthis_widget_t *morpthis_spinner_create(morpthis_screen_t *screen) {
+	return widget_new(screen, HOST_WIDGET_SPINNER);
+}
+
+morpthis_widget_t *morpthis_container_create(morpthis_screen_t *screen) {
+	return widget_new(screen, HOST_WIDGET_CONTAINER);
+}
+
+void morpthis_container_set_layout(morpthis_widget_t *container, morpthis_layout_t layout,
+								   morpthis_align_t main_align, morpthis_align_t cross_align, int gap) {
+	(void)container;
+	(void)layout;
+	(void)main_align;
+	(void)cross_align;
+	(void)gap;
+}
+
+void morpthis_container_set_scrollable(morpthis_widget_t *container, bool vertical) {
+	(void)container;
+	(void)vertical;
+}
+
+morpthis_widget_t *morpthis_segmented_create(morpthis_screen_t *screen, const char *const *labels,
+										 int count, int selected, morpthis_value_cb cb, void *user) {
+	if (!labels || count <= 0) {
+		return NULL;
+	}
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_SEGMENTED);
+	if (!widget) {
+		return NULL;
+	}
+	widget->items = calloc((size_t)count, sizeof(*widget->items));
+	if (!widget->items) {
+		morpthis_widget_destroy(widget);
+		return NULL;
+	}
+	for (int i = 0; i < count; i++) {
+		widget->items[i] = dup_text(labels[i]);
+		if (!widget->items[i]) {
+			morpthis_widget_destroy(widget);
+			return NULL;
+		}
+	}
+	widget->item_count = count;
+	widget->value = selected >= 0 && selected < count ? selected : -1;
+	widget->value_cb = cb;
+	widget->value_user = user;
+	return widget;
+}
+
+void morpthis_segmented_set_selected(morpthis_widget_t *widget, int index) {
+	if (!widget || widget->kind != HOST_WIDGET_SEGMENTED) {
+		return;
+	}
+	widget->value = index >= 0 && index < widget->item_count ? index : -1;
+}
+
+int morpthis_segmented_selected(const morpthis_widget_t *widget) {
+	return widget && widget->kind == HOST_WIDGET_SEGMENTED ? widget->value : -1;
+}
+
+morpthis_widget_t *morpthis_settings_row_create(morpthis_screen_t *screen, const char *title,
+										  const char *detail, const char *value,
+										  morpthis_click_cb cb, void *user) {
+	(void)detail;
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_SETTINGS_ROW);
+	if (!widget) {
+		return NULL;
+	}
+	widget->text = dup_text(title);
+	widget->value_text = dup_text(value);
+	widget->click_cb = cb;
+	widget->click_user = user;
+	return widget;
+}
+
+void morpthis_settings_row_set_value(morpthis_widget_t *widget, const char *value) {
+	if (!widget || widget->kind != HOST_WIDGET_SETTINGS_ROW) {
+		return;
+	}
+	char *copy = dup_text(value);
+	if (!copy) {
+		return;
+	}
+	free(widget->value_text);
+	widget->value_text = copy;
+}
+
+morpthis_widget_t *morpthis_text_input_create(morpthis_screen_t *screen, const char *title,
+										  const char *initial, bool password,
+										  morpthis_text_cb cb, void *user) {
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_TEXT_INPUT);
+	if (!widget) {
+		return NULL;
+	}
+	widget->text = dup_text(title);
+	widget->image = dup_text(initial);
+	widget->text_cb = cb;
+	widget->text_user = user;
+	widget->password = password;
+	return widget;
+}
+
+void morpthis_text_input_set_text(morpthis_widget_t *widget, const char *text) {
+	morpthis_widget_set_text(widget, text);
+}
+
+const char *morpthis_text_input_get_text(const morpthis_widget_t *widget) {
+	return widget && widget->kind == HOST_WIDGET_TEXT_INPUT && widget->image ? widget->image : "";
+}
+
+void morpthis_widget_set_parent(morpthis_widget_t *widget, morpthis_widget_t *parent) {
+	if (!widget || widget == parent) {
+		return;
+	}
+	if (widget->parent) {
+		morpthis_widget_t **link = &widget->parent->child;
+		while (*link && *link != widget) {
+			link = &(*link)->next;
+		}
+		if (*link == widget) {
+			*link = widget->next;
+		}
+	}
+	widget->parent = parent ? parent : (g_active ? &g_active->base : NULL);
+	widget->next = NULL;
+	if (widget->parent) {
+		widget->next = widget->parent->child;
+		widget->parent->child = widget;
+	}
+}
+
+void morpthis_widget_set_bg_color(morpthis_widget_t *widget, uint32_t rgb, int opacity) {
+	(void)widget;
+	(void)rgb;
+	(void)opacity;
+}
+
+void morpthis_widget_set_text_color(morpthis_widget_t *widget, uint32_t rgb) {
+	(void)widget;
+	(void)rgb;
+}
+
+void morpthis_widget_set_radius(morpthis_widget_t *widget, int radius) {
+	(void)widget;
+	(void)radius;
+}
+
+void morpthis_widget_set_padding(morpthis_widget_t *widget, int left, int top, int right, int bottom) {
+	(void)widget;
+	(void)left;
+	(void)top;
+	(void)right;
+	(void)bottom;
+}
+
+bool morpthis_list_scroll_to(morpthis_widget_t *list, int index) {
+	return list && list->kind == HOST_WIDGET_LIST && index >= 0 && index < list->item_count;
+}
+
+void morpthis_slider_set_range(morpthis_widget_t *slider, int min, int max) {
+	if (!slider || slider->kind != HOST_WIDGET_SLIDER) {
+		return;
+	}
+	if (max < min) {
+		int swap = min;
+		min = max;
+		max = swap;
+	}
+	slider->min = min;
+	slider->max = max;
+	if (slider->value < min) {
+		slider->value = min;
+	}
+	if (slider->value > max) {
+		slider->value = max;
+	}
+}
+
+void morpthis_toast_success(const char *text) { morpthis_logi("ui", "toast success: %s", text ? text : ""); }
+void morpthis_toast_error(const char *text) { morpthis_logi("ui", "toast error: %s", text ? text : ""); }
+void morpthis_toast_busy(const char *text) { morpthis_logi("ui", "toast busy: %s", text ? text : ""); }
+void morpthis_toast_busy_end(void) { morpthis_logi("ui", "toast busy end"); }
+
+void morpthis_ui_modal_show(const char *title, const char *subtitle) {
+	morpthis_logi("ui", "modal: %s — %s", title ? title : "", subtitle ? subtitle : "");
+}
+
+void morpthis_ui_modal_progress(int percent) { (void)percent; }
+void morpthis_ui_modal_hide(void) {}
+
+morpthis_widget_t *morpthis_qrcode_create(morpthis_screen_t *screen, int size) {
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_QRCODE);
+	if (widget) {
+		widget->width = size > 0 ? size : 0;
+		widget->height = size > 0 ? size : 0;
+	}
+	return widget;
+}
+
+void morpthis_qrcode_set_text(morpthis_widget_t *qrcode, const char *text) {
+	if (!qrcode || qrcode->kind != HOST_WIDGET_QRCODE) {
+		return;
+	}
+	char *copy = dup_text(text);
+	if (!copy) {
+		return;
+	}
+	free(qrcode->text);
+	qrcode->text = copy;
+}
+
+morpthis_widget_t *morpthis_roller_create(morpthis_screen_t *screen, const char *const *options,
+										  int count, int selected, int visible_rows,
+										  morpthis_value_cb cb, void *user) {
+	(void)visible_rows;
+	if (!options || count <= 0) {
+		return NULL;
+	}
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_ROLLER);
+	if (!widget) {
+		return NULL;
+	}
+	widget->items = calloc((size_t)count, sizeof(*widget->items));
+	if (!widget->items) {
+		morpthis_widget_destroy(widget);
+		return NULL;
+	}
+	for (int i = 0; i < count; i++) {
+		widget->items[i] = dup_text(options[i]);
+		if (!widget->items[i]) {
+			morpthis_widget_destroy(widget);
+			return NULL;
+		}
+	}
+	widget->item_count = count;
+	widget->value = selected >= 0 && selected < count ? selected : 0;
+	widget->value_cb = cb;
+	widget->value_user = user;
+	return widget;
+}
+
+void morpthis_roller_set_selected(morpthis_widget_t *roller, int index) {
+	if (!roller || roller->kind != HOST_WIDGET_ROLLER) {
+		return;
+	}
+	if (index < 0) {
+		index = 0;
+	}
+	if (index >= roller->item_count) {
+		index = roller->item_count > 0 ? roller->item_count - 1 : 0;
+	}
+	roller->value = index;
+}
+
+int morpthis_roller_selected(const morpthis_widget_t *roller) {
+	return roller && roller->kind == HOST_WIDGET_ROLLER ? roller->value : 0;
+}
+
+void morpthis_widget_set_text_wrap(morpthis_widget_t *widget, bool wrap) {
+	(void)widget;
+	(void)wrap;
+}
+
+void morpthis_widget_set_text_scroll(morpthis_widget_t *widget, bool scroll) {
+	if (widget) {
+		widget->text_scroll = scroll;
+	}
+}
+
+morpthis_widget_t *morpthis_arc_create(morpthis_screen_t *screen, int min, int max, int value,
+									   morpthis_value_cb cb, void *user) {
+	morpthis_widget_t *widget = widget_new(screen, HOST_WIDGET_ARC);
+	if (!widget) {
+		return NULL;
+	}
+	widget->value_cb = cb;
+	widget->value_user = user;
+	morpthis_arc_set_range(widget, min, max);
+	morpthis_arc_set_value(widget, value);
+	return widget;
+}
+
+void morpthis_arc_set_value(morpthis_widget_t *widget, int value) {
+	if (!widget || widget->kind != HOST_WIDGET_ARC) {
+		return;
+	}
+	if (value < widget->min) {
+		value = widget->min;
+	}
+	if (value > widget->max) {
+		value = widget->max;
+	}
+	widget->value = value;
+}
+
+int morpthis_arc_value(const morpthis_widget_t *widget) {
+	return widget && widget->kind == HOST_WIDGET_ARC ? widget->value : 0;
+}
+
+void morpthis_arc_set_range(morpthis_widget_t *widget, int min, int max) {
+	if (!widget || widget->kind != HOST_WIDGET_ARC) {
+		return;
+	}
+	if (max < min) {
+		int swap = min;
+		min = max;
+		max = swap;
+	}
+	widget->min = min;
+	widget->max = max;
+	if (widget->value < min) {
+		widget->value = min;
+	}
+	if (widget->value > max) {
+		widget->value = max;
+	}
 }

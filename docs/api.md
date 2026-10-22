@@ -4,7 +4,8 @@ Everything an app may call is declared under `include/morpthis/`. This document
 is the behavioural contract; the headers are the source of truth for types.
 
 All calls run on the GUI thread unless stated otherwise. All pointers returned
-by the SDK are owned by the player and valid for the app's lifetime.
+by the SDK are owned by the player and valid for the app's lifetime unless the
+call says otherwise.
 
 ## Entry point
 
@@ -29,14 +30,23 @@ MORPTHIS_DEFINE_API_VERSION();
 
 Put that once at file scope. It defines `int morpthis_app_api_required(void)`,
 which returns `MORPTHIS_APP_API_VERSION` from the header the app compiled with.
-The player treats a missing symbol as API 1 but refuses a newer major. API 2
-adds `morpthis_audio_open_ex`, `morpthis_audio_write_pcm`,
+The player treats a missing symbol as API 1 but refuses a newer major.
+
+API 2 added `morpthis_audio_open_ex`, `morpthis_audio_write_pcm`,
 `morpthis_audio_set_playing`, `morpthis_audio_set_track`,
 `morpthis_app_background`, `morpthis_app_back_handled`, the player-styled icon
 buttons and text size/dim/align calls, the full-height screen,
 `morpthis_image_set_source`, the popover menus and the control-centre
-`NOW_PLAYING` button; the SDK version is 1.1.0 and the ABI list is
-`abi/morpthis-api-2.txt`.
+`NOW_PLAYING` button.
+
+API 3 adds the player's own services: local playback and queue control
+(`playback.h`), the 10-band equalizer (`audio.h`), the music library,
+favourites and playlists (`library.h`), the HTTP/TLS client (`net.h`), device
+status, brightness, the clock, USB, power and the settings store (`system.h`),
+Wi-Fi and Bluetooth (`wireless.h`), absolute-path file access and directory
+walks (`fs.h`), theme/dialog/text-entry UI (`ui.h`) and
+`morpthis_app_is_background()`. The SDK version is 1.2.0 and the ABI list is
+`abi/morpthis-api-3.txt`.
 
 An app with threads, a network connection or the raw audio output should also
 export an optional shutdown hook:
@@ -74,6 +84,7 @@ away.
 | `morpthis_app_post(fn, user)` | Runs on the GUI thread. Any thread may call. |
 | `morpthis_app_quit()` | Destroys the screen and returns to Apps. |
 | `morpthis_app_background()` | Hides the app's screens and keeps it running. |
+| `morpthis_app_is_background()` | True while it is in the background. |
 | `morpthis_app_back_handled()` | The BACK handler moved to another of the app's screens. |
 
 `morpthis_app_main` must return before the player starts dispatching events.
@@ -187,7 +198,50 @@ callback, as a touch on the page would.
 Destroying the screen that is currently on display requests a quit rather than
 deleting LVGL's active page underneath it. Quit with `morpthis_app_quit()`.
 
-The look is the player's: theme, fonts and scale are not app settings in API 2.
+The look is the player's: theme, fonts and scale are not app settings in API
+2. API 3 can read the palette (`morpthis_ui_theme()`) and switch Dark/Light or
+the accent, but fonts and layout scale still belong to the player.
+
+API 3's other UI calls are the player's own chrome rather than new widgets.
+`morpthis_ui_set_status_bar_visible()` shows or hides the status bar (a game
+screen keeps it hidden). `morpthis_ui_confirm()` puts up the player's modal
+yes/no card and runs the callback after it closes; `morpthis_ui_notice()` is the
+one-button form. `morpthis_ui_prompt_text()` opens a themed card with the
+player's keyboard and reports the text once, so an app that needs a server
+address or a passphrase does not have to build a text-entry page. On the
+headless host the modal calls return false, like the popover menus.
+
+### The full widget set (API 3)
+
+Beyond label, button, list, image, slider and canvas, the SDK wraps the rest of
+the player's interface vocabulary:
+
+| Call | What it is |
+| --- | --- |
+| `morpthis_switch_create/is_on/set_on` | The themed on/off switch. |
+| `morpthis_progress_create/set_value/value/set_range` | A thin accent bar. |
+| `morpthis_spinner_create` | The player's rotating loader. |
+| `morpthis_container_create/set_layout/set_scrollable` | Transparent box, row/column flex layout, optional vertical scrolling. |
+| `morpthis_widget_set_parent` | Moves a widget into a container; children follow `MORPTHIS_SIZE_CONTENT` when the container lays them out. |
+| `morpthis_segmented_create/set_selected/selected` | The row of pill choices. |
+| `morpthis_settings_row_create/set_value` | The player's settings row: title, dim detail, value or chevron. |
+| `morpthis_text_input_create/set_text/get_text` | An inline field that opens the player's keyboard modal on tap. |
+| `morpthis_qrcode_create/set_text` | A QR code in the theme's colours. |
+| `morpthis_roller_create/set_selected/selected` | A wheel of options (the sleep-timer/date rollers are built from these). |
+| `morpthis_arc_create/set_value/value/set_range` | A circular gauge, for a battery ring or a knob. |
+| `morpthis_widget_set_text_wrap/scroll` | Wrapped text and the player's delayed marquee. |
+| `morpthis_list_scroll_to` | Brings a list row into view. |
+| `morpthis_slider_set_range` | Changes a slider's range without firing its callback. |
+| `morpthis_timer_create/set_period/reset/delete` | A repeating GUI-thread timer, deleted with the app. |
+| `morpthis_widget_set_bg_color/text_color/radius/padding` | Local style overrides on top of the theme. |
+| `morpthis_toast_success/error/busy/busy_end` | The player's other toast cards. |
+| `morpthis_ui_modal_show/progress/hide` | The full-screen modal with an optional progress bar. |
+
+`morpthis_icon_t` carries the player's own glyphs -- transport, chevrons, album,
+artist, folder, file, music, playlist, heart, star, shuffle, repeat, sort, check,
+plus, delete, refresh, info, alert, Wi-Fi, Bluetooth, battery, charging,
+equalizer, settings, sleep, sun, the three volume states, headphones, power and
+reboot -- so an app's icons are the interface's icons rather than a second set.
 
 ## input.h
 
@@ -237,7 +291,7 @@ quits, unless it is itself a player.
 | `morpthis_audio_close()` | Releases the output; playback stays stopped. |
 
 `morpthis_track_t` has fixed arrays and an `int duration_ms`; its layout is
-part of API 2.
+part of API 3.
 
 The raw output is for an app that mixes its own sound or streams one. Open,
 write and close on the same thread: a write blocks until the device has room,
@@ -270,6 +324,11 @@ starts or changes, and again with `playing = false` when it stops; pass NULL to
 clear it. It is safe from any thread, and safe before the output is open (the
 track is remembered, but the status glyph only moves once audio exists).
 Closing the output clears the published track.
+
+API 3 adds the player's 10-band equalizer to this header: `eq_enabled()` and
+`set_eq_enabled()`, `eq_band()`/`set_eq_band()` in whole dB from -12 to +12, and
+`eq_reset()`. It is the same global curve Settings > Sound edits and is saved
+the same way, so an app and the player's own page cannot disagree.
 
 ## fs.h
 
@@ -306,6 +365,77 @@ behind.
 
 The card may disappear at any time. Check every write; do not assume a file
 stays open across a UI transition.
+
+The API 3 absolute-path calls (`morpthis_fs_open_absolute`, `_exists_absolute`,
+`_write_all_absolute`, `_read_all_absolute`, `_remove_absolute`,
+`_rmdir_absolute`, `_rename_absolute`, `_mkdir_absolute`, `_stat_absolute`)
+are not sandboxed:
+they open exactly the path they are given, as the player's user. A directory
+walk is `morpthis_fs_open_dir()`, `morpthis_fs_dir_next()` (returns a name,
+skipping `.` and `..`), `morpthis_fs_dir_is_dir()` and `morpthis_fs_dir_close()`.
+
+## playback.h
+
+The player's own engine, not a second player. `morpthis_playback_play_file()`
+and `play_folder()` build the same folder queue as tapping a file in the
+browser; `play_queue()` takes an explicit list; `play_index()`, `next()`,
+`prev()`, `pause()`, `resume()`, `toggle()`, `stop()` and `seek()` drive it.
+`morpthis_playback_get_info()` fills `morpthis_playback_info_t` with the track,
+codec, rate/depth, position/duration, queue position and play mode.
+`queue_insert(path, -1)` is "add to queue"; `queue_path()` reads it back.
+`morpthis_playback_set_changed_cb()` is called on the GUI thread when the
+track, transport state, queue or mode changes, not while a progress bar moves.
+Paths are absolute; the engine owns the queue and copies what it is given.
+
+## library.h
+
+A read-through view of the player's own index, with the same collation and the
+same album identity. `morpthis_library_for_each[_ordered]()` streams a list into
+a callback (`MORPTHIS_LIBRARY_TRACKS`, `ALBUMS`, `ARTISTS`, `ALBUM_ARTISTS`,
+`GENRES`, `FAVOURITES`, `PLAYLIST`, `YEARS`, `MOST_PLAYED`), with the album /
+artist / genre / year / search filter. `track_title`, `track_names`,
+`track_album[_value]`, `album_title`, `album_artist` and `track_quality` answer
+single lookups. Favourites, play counts, search and the playlist calls map to
+the local Music and playlist pages. `scan_start()` rebuilds the index from the
+card root, exactly like Settings > Scan; `scan_current()` copies the folder and
+file being read. A playlist row is
+streamed by `morpthis_library_playlist_rows()`, four at a time internally, so a
+long list never becomes a large allocation.
+
+## system.h
+
+`morpthis_system_info()` gives the device name, OS/build versions, serial and
+DAC; `storage()` gives the card's usage. `battery_percent()` returns -1 when it
+cannot be read. `screen_is_on/on/off/toggle`, `brightness()` (percent) and
+`set_brightness()` (clamped to the player's 5 % floor and persisted) are the
+Screen settings. `hold_screen()` keeps the idle timer from blanking the panel.
+`time()`/`set_time()` use the wall clock and RTC. `screenshot()` is the same
+asynchronous capture as the volume-up + power gesture. `poweroff()` and
+`reboot()` do not return. The config calls read and write the player's own
+`/usr/data/device_config.ini`; the setters only touch memory until
+`morpthis_config_save()`.
+
+## wireless.h
+
+Wi-Fi: `available/enabled/set_enabled/busy`, `status()` (state, SSID, IP, MAC,
+signal), `connected()`, `scan()/scan_running()/networks_serial()/networks()`,
+`connect[_hidden]()/disconnect()/forget()`, and `take_result()` plus
+`last_failure()`/`last_op_kind()`. Bluetooth: `available/enabled/set_enabled`,
+`state()`, `local_name()/set_local_name()`, paired and found device lists,
+`connected_device()`, `audio_active()`, scan controls, pair/connect/disconnect/
+forget, and `take_result()`. Every command is queued to the player's worker;
+nothing blocks, and the result appears in the status calls.
+
+## net.h
+
+`morpthis_http_get()` fetches a whole small response;
+`morpthis_http_perform()` takes a method, headers, body and content type. The
+response body is malloc'd, NUL-terminated and released with
+`morpthis_http_response_free()`. `morpthis_http_last_error()` gives the reason a
+person can act on for the last request on the calling thread. Both calls block
+on connect, TLS and every read, so they belong on an app-owned thread. The
+player's CA bundle and its strict/relaxed verification setting apply, which is
+what lets an app talk to HTTPS without carrying OpenSSL itself.
 
 ## log.h
 

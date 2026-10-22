@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -85,6 +86,48 @@ bool morpthis_fs_resolve(const char *relative, char *out, size_t size);
 int morpthis_fs_remove(const char *relative);
 int morpthis_fs_rename(const char *from, const char *to);
 int morpthis_fs_mkdir(const char *relative);
+
+// ---------------------------------------------------------------------------
+// Full access
+//
+// The calls above are deliberately confined to the app's own package and data
+// folder. API 3 adds the rest of the device: anything the player itself can
+// read or write, named by an absolute path. There is no sandbox behind these --
+// an app runs in the player's process and as the same user -- so use them for
+// the user's files (the card, a playlist they chose, a cache the app owns) and
+// not for the firmware's own files.
+//
+// `mode` follows the same values as morpthis_fs_open(). Paths are absolute.
+// ---------------------------------------------------------------------------
+
+morpthis_file_t *morpthis_fs_open_absolute(const char *path, morpthis_fs_mode_t mode);
+bool morpthis_fs_exists_absolute(const char *path);
+bool morpthis_fs_write_all_absolute(const char *path, const void *buffer, size_t size);
+long morpthis_fs_read_all_absolute(const char *path, char *buffer, size_t max, size_t *out_size);
+int morpthis_fs_remove_absolute(const char *path);
+int morpthis_fs_rmdir_absolute(const char *path);
+int morpthis_fs_rename_absolute(const char *from, const char *to);
+int morpthis_fs_mkdir_absolute(const char *path);
+
+typedef struct {
+	uint64_t size;
+	int64_t mtime;
+	bool is_dir;
+} morpthis_fs_stat_t;
+
+// stat() on an absolute path. False and errno set when it does not exist.
+bool morpthis_fs_stat_absolute(const char *path, morpthis_fs_stat_t *out);
+
+// A directory walk. Entries are returned as names (not paths), "." and ".."
+// are skipped, and the name is valid until the next call. The handle owns the
+// DIR and must be closed. `dir_is_dir` describes the entry last returned by
+// `dir_next`.
+typedef struct morpthis_dir morpthis_dir_t;
+
+morpthis_dir_t *morpthis_fs_open_dir(const char *absolute_path);
+const char *morpthis_fs_dir_next(morpthis_dir_t *dir);
+bool morpthis_fs_dir_is_dir(const morpthis_dir_t *dir);
+void morpthis_fs_dir_close(morpthis_dir_t *dir);
 
 #ifdef __cplusplus
 }

@@ -168,6 +168,10 @@ bool morpthis_app_background(void) {
 	return true;
 }
 
+bool morpthis_app_is_background(void) {
+	return false;
+}
+
 void morpthis_app_back_handled(void) {
 	// The player reads this flag in its back guard. The host runner has no guard
 	// and nothing to keep alive, so there is nothing to do.

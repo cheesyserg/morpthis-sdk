@@ -9,7 +9,12 @@
 #include "morpthis/ui.h"
 #include "morpthis/input.h"
 #include "morpthis/audio.h"
+#include "morpthis/playback.h"
+#include "morpthis/library.h"
 #include "morpthis/fs.h"
+#include "morpthis/system.h"
+#include "morpthis/wireless.h"
+#include "morpthis/net.h"
 #include "morpthis/log.h"
 
 #endif /* MORPTHIS_MORPTHIS_H */

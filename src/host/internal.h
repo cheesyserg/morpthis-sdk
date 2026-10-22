@@ -33,7 +33,17 @@ typedef enum {
 	HOST_WIDGET_LIST,
 	HOST_WIDGET_IMAGE,
 	HOST_WIDGET_SLIDER,
-	HOST_WIDGET_CANVAS
+	HOST_WIDGET_CANVAS,
+	HOST_WIDGET_CONTAINER,
+	HOST_WIDGET_SWITCH,
+	HOST_WIDGET_PROGRESS,
+	HOST_WIDGET_SPINNER,
+	HOST_WIDGET_SEGMENTED,
+	HOST_WIDGET_SETTINGS_ROW,
+	HOST_WIDGET_TEXT_INPUT,
+	HOST_WIDGET_QRCODE,
+	HOST_WIDGET_ROLLER,
+	HOST_WIDGET_ARC,
 } host_widget_kind_t;
 
 struct morpthis_widget {
@@ -63,6 +73,12 @@ struct morpthis_widget {
 	char **items;
 	int item_count;
 
+	morpthis_text_cb text_cb;
+	void *text_user;
+	bool password;
+	char *value_text; // a settings row's value
+	bool text_scroll;
+
 	struct morpthis_widget *parent;
 	struct morpthis_widget *next;
 	struct morpthis_widget *child;
@@ -87,6 +103,10 @@ const morpthis_app_t *host_app(void);
 
 bool host_quit_requested(void);
 void host_run_posted(void);
+
+// Runs every timer whose period has elapsed. Called by the runner's sleep and
+// main loop, so an app's animation or poll advances during a test.
+void host_run_timers(void);
 
 // UI helpers used by the host runner and the script runner.
 bool host_ui_click_label(const char *label);

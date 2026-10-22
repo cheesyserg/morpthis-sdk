@@ -103,6 +103,7 @@ static bool run_command(char *command) {
 			long slice = ms > 5 ? 5 : ms;
 			sleep_ms(slice);
 			host_run_posted();
+			host_run_timers();
 			ms -= slice;
 		}
 		return true;
@@ -196,6 +197,7 @@ int main(int argc, char **argv) {
 	uint32_t deadline = morpthis_app_time_ms() + (uint32_t)run_ms;
 	while (!host_quit_requested()) {
 		host_run_posted();
+		host_run_timers();
 		if (host_quit_requested()) {
 			break;
 		}
@@ -205,6 +207,7 @@ int main(int argc, char **argv) {
 		sleep_ms(1);
 	}
 	host_run_posted();
+	host_run_timers();
 
 	if (!host_quit_requested()) {
 		morpthis_logi("host", "run ended after %ld ms without quit", run_ms);
