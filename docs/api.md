@@ -286,7 +286,7 @@ quits, unless it is itself a player.
 | `morpthis_audio_open_ex(rate, channels, bits, buffer_ms)` | The same, at 16, 24 or 32 bits. |
 | `morpthis_audio_write(pcm, frames)` | Signed 16-bit interleaved; blocks at DAC pace. |
 | `morpthis_audio_write_pcm(pcm, frames)` | Any depth opened with `open_ex`; blocks at DAC pace. |
-| `morpthis_audio_set_playing(bool)` | Updates the status-bar play/pause glyph. |
+| `morpthis_audio_set_playing(bool)` | Updates the status-bar play/pause glyph; false drops queued audio. |
 | `morpthis_audio_set_track(track, playing)` | Publishes the track for the control centre and status bar. |
 | `morpthis_audio_close()` | Releases the output; playback stays stopped. |
 
@@ -312,8 +312,10 @@ retried at 16 by the app, as local playback does.
 is true the player keeps the device awake with the screen off, exactly as it
 does for a local track, and keeps Wi-Fi up because an app's output is usually a
 stream; the screen still turns off on its own idle timer. Pausing releases the
-hold and lets standby proceed. Call it when pause or resume takes effect, from
-any thread; closing the output clears it.
+hold and lets standby proceed. False also drops the PCM queue, so pause is
+silent immediately rather than playing out the deep buffer (over Bluetooth the
+transport's own buffer is the remaining tail). Call it when pause or resume
+takes effect, from any thread; closing the output clears it.
 
 `morpthis_audio_set_track()` is what makes an app's playback visible outside its
 own screens. The player copies the title, artist, album and duration and shows

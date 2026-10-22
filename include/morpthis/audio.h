@@ -98,12 +98,15 @@ size_t morpthis_audio_write_pcm(const void *pcm, size_t frames);
 size_t morpthis_audio_write(const int16_t *pcm, size_t frames);
 
 // Tells the player whether the app's output is producing sound right now, so
-// the status-bar indicator follows pause and resume. The power manager treats
-// it like local playback too: while true the device stays awake with the screen
-// off (and Wi-Fi is not parked), and pausing releases that hold. The screen
-// still turns off on its own idle timer. Safe to call from any thread,
-// including the app's mixer and the GUI thread; it is a no-op when no output is
-// open. Closing the output clears it automatically.
+// the status-bar indicator follows pause and resume. False drops the PCM queue,
+// so a pause is silent at once instead of playing out the device's buffer; on
+// Bluetooth the transport's own buffer is the remaining tail.
+//
+// The power manager treats it like local playback too: while true the device
+// stays awake with the screen off (and Wi-Fi is not parked), and pausing
+// releases that hold. The screen still turns off on its own idle timer. Safe to
+// call from any thread, including the app's mixer and the GUI thread; it is a
+// no-op when no output is open. Closing the output clears it automatically.
 void morpthis_audio_set_playing(bool playing);
 
 // Publishes the track the app is playing, for the player's control centre.

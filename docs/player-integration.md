@@ -247,9 +247,12 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
   "leave the player's audio alone" rule in `app-sdk.md`. A heavy app stops it by
   declaring its tier; the player does the stop, not the app.
 - `morpthis_audio_set_playing()` updates the status glyph while the app holds
-  the raw output. `morpthis_audio_set_track()` publishes the track the control
-  centre's card shows; the player copies it under its own lock because the app
-  may publish from its mixer thread. Closing the output clears both.
+  the raw output, and clears it on pause after dropping the PCM queue and
+  silencing the DAC. Bluetooth is the exception: bluealsa's transport is
+  released by a drop, so only its own buffer can be the tail there.
+  `morpthis_audio_set_track()` publishes the track the control centre's card
+  shows; the player copies it under its own lock because the app may publish
+  from its mixer thread. Closing the output clears both.
 - When the app's output is active, the player's own transport must not touch the
   DAC. The local player calls `apphost_release_audio()` before it starts a track,
   which closes the app's output; the app sees a short write and stops its stream.
