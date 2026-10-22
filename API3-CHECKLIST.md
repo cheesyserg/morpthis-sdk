@@ -209,7 +209,8 @@ Legend: `[x]` done, `[ ]` still to do.
 
 ## 10. App migration (open)
 
-- [ ] Optionally rebuild Subsonic against SDK 1.2 and set `min_player: 3`
+- [x] Rebuilt Subsonic against SDK 1.2, set `min_player: 3`, and moved its
+      settings page and search to the API 3 settings rows and text prompt
 - [ ] Move Subsonic's HTTP calls to `net.h` if a single TLS stack is wanted
 - [ ] Use `playback.h` only where the app wants the player's queue; it can keep
       its own raw PCM output for server-side transcoding
