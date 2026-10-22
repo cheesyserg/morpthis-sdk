@@ -314,8 +314,13 @@ does for a local track, and keeps Wi-Fi up because an app's output is usually a
 stream; the screen still turns off on its own idle timer. Pausing releases the
 hold and lets standby proceed. False also drops the PCM queue, so pause is
 silent immediately rather than playing out the deep buffer (over Bluetooth the
-transport's own buffer is the remaining tail). Call it when pause or resume
-takes effect, from any thread; closing the output clears it.
+transport's own buffer is the remaining tail). A source that stops writing for
+five seconds reads as stopped even if the flag is still true, so an app cannot
+hold the device awake after playback has ended. The player may also close a
+paused output before standby; `set_playing(true)` or the next write reopens it
+with the same terms, so resuming after the wake needs no special case. Call it
+when pause or resume takes effect, from any thread; closing the output clears
+it.
 
 `morpthis_audio_set_track()` is what makes an app's playback visible outside its
 own screens. The player copies the title, artist, album and duration and shows

@@ -249,7 +249,9 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
 - `morpthis_audio_set_playing()` updates the status glyph while the app holds
   the raw output, and clears it on pause after dropping the PCM queue and
   silencing the DAC. Bluetooth is the exception: bluealsa's transport is
-  released by a drop, so only its own buffer can be the tail there.
+  released by a drop, so only its own buffer can be the tail there. The power
+  hold also requires writes: five seconds without a successful PCM write means
+  the source is no longer playing, whatever its flag says.
   `morpthis_audio_set_track()` publishes the track the control centre's card
   shows; the player copies it under its own lock because the app may publish
   from its mixer thread. Closing the output clears both.

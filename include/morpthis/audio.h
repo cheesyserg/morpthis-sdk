@@ -104,9 +104,16 @@ size_t morpthis_audio_write(const int16_t *pcm, size_t frames);
 //
 // The power manager treats it like local playback too: while true the device
 // stays awake with the screen off (and Wi-Fi is not parked), and pausing
-// releases that hold. The screen still turns off on its own idle timer. Safe to
-// call from any thread, including the app's mixer and the GUI thread; it is a
-// no-op when no output is open. Closing the output clears it automatically.
+// releases that hold. A source that stops writing for five seconds is treated
+// as stopped even if it left this true, so an app cannot hold the device awake
+// after its playback has ended. The screen still turns off on its own idle
+// timer. Safe to call from any thread, including the app's mixer and the GUI
+// thread; it is a no-op when no output is open. Closing the output clears it
+// automatically.
+//
+// The player may close a paused output before entering standby. set_playing(true)
+// or the next successful write reopens it with the same terms, so an app that
+// paused before the screen went dark can simply resume.
 void morpthis_audio_set_playing(bool playing);
 
 // Publishes the track the app is playing, for the player's control centre.
