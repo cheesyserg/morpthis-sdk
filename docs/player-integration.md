@@ -107,7 +107,7 @@ typedef struct morpthis_app {
     char name[APPS_NAME_MAX];
     char version[APPS_VERSION_MAX];
     char folder[APPS_FOLDER_MAX]; // the mounted, read-only package root
-    char data[APPS_FOLDER_MAX];   // the writable merp_data folder
+    char data[APPS_FOLDER_MAX];   // the writable Apps/merp_data folder
     app_tier_t tier;
 
     void *dl_handle;
@@ -121,7 +121,7 @@ typedef struct morpthis_app {
 
 `morpthis_app_id()` and the rest return pointers into this struct. The folder is
 the mount point the launcher set up; the data folder is
-`<card>/merp_data/<id>`, created before the entry point runs.
+`<card>/Apps/merp_data/<id>`, created before the entry point runs.
 
 ## 5. Lifecycle
 
@@ -186,6 +186,14 @@ headroom.
   to the left of the player's background button, and reserves the title width
   for it. Icons come from the player's own set (`morpthis_icon_t`), and
   `morpthis_icon_button_create()` is the same glyph on a flat transport target.
+- `morpthis_menu_show()` reuses the player's popover (`popover_show()`): one
+  modal card next to an anchor, a dim veil, and a tick on the checked item.
+  `morpthis_menu_show_row()` anchors it to a row of an SDK list. The player
+  keeps the callback until the item is chosen and clears it when the menu is
+  closed or the app unloads.
+- A slider's release callback is delivered on `LV_EVENT_RELEASED` and
+  `LV_EVENT_PRESS_LOST`; programmatic sets do not fire it. That is the bridge a
+  seek bar needs, since a restart on every drag event would never connect.
 - Text size, dim colour and alignment are the player's, not free values, so an
   app page reads as part of the same UI.
 - `morpthis_image_set_source()` re-resolves a path through the fs bridge and

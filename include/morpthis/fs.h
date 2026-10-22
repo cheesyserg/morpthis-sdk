@@ -16,7 +16,7 @@ extern "C" {
 // to name a file outside its folder by accident or by intent.
 //
 // An app package is a read-only image. The app's writable folder is separate,
-// at <card>/merp_data/<id>, and the two are presented as one tree:
+// at <card>/Apps/merp_data/<id>, and the two are presented as one tree:
 //
 //   read          the data folder first, then the package
 //   write/append  the data folder, copying a shipped file there before the

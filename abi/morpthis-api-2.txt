@@ -60,6 +60,9 @@ morpthis_list_create
 morpthis_list_set_playing
 morpthis_list_set_select_cb
 morpthis_log
+morpthis_menu_close
+morpthis_menu_show
+morpthis_menu_show_row
 morpthis_screen_active
 morpthis_screen_add_corner_button
 morpthis_screen_create
@@ -68,6 +71,7 @@ morpthis_screen_destroy
 morpthis_screen_load
 morpthis_screen_set_title
 morpthis_slider_create
+morpthis_slider_set_release_cb
 morpthis_slider_set_value
 morpthis_slider_value
 morpthis_toast

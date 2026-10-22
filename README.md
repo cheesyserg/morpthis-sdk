@@ -12,9 +12,9 @@ C, versioned and free of LVGL types.
 samples are here and tested. The player has the in-process loader and the
 LVGL/input/audio/fs bridges in its `src/gui/apps/`; API 2 adds the 24/32-bit
 PCM output, the status-bar playing flag, background apps, published tracks for
-the control centre, the player's icon/screen/text widgets and an app-controlled
-BACK step. The pinned device toolchain is still the missing piece for device CI.
-See [docs/player-integration.md](docs/player-integration.md).
+the control centre, the player's icon/screen/text widgets, popover menus and an
+app-controlled BACK step. The pinned device toolchain is still the missing piece
+for device CI. See [docs/player-integration.md](docs/player-integration.md).
 
 ## Quick start
 
@@ -108,8 +108,8 @@ See [docs/building.md](docs/building.md).
   can see; a utility should fit in 4 MB, a game in 8 MB. The manifest's `tier`
   is `light` (leave playback and caches alone) or `heavy` (release them first).
 - **The package is read-only; the data folder is the app's.** `fs.h` resolves
-  every path against `merp_data/<id>` first and the mounted package second, and
-  sends every write to the data folder. Absolute paths, backslashes and `..`
+  every path against `Apps/merp_data/<id>` first and the mounted package second,
+  and sends every write to the data folder. Absolute paths, backslashes and `..`
   are refused, exactly as the player's manifest reader does.
 - **No networking, Bluetooth or DAC registers in API 2.** They belong to the
   player; an app that needs them asks for a later API.

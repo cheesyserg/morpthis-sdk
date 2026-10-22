@@ -240,6 +240,31 @@ void morpthis_image_set_source(morpthis_widget_t *image, const char *relative_pa
 	image->image = copy;
 }
 
+// The host runner has no display, so there is nothing to pop a menu on. The
+// app sees false and can fall back to whatever it does without one.
+bool morpthis_menu_show(morpthis_widget_t *anchor, const morpthis_menu_item_t *items, int count,
+						morpthis_menu_cb cb, void *user) {
+	(void)anchor;
+	(void)items;
+	(void)count;
+	(void)cb;
+	(void)user;
+	return false;
+}
+
+bool morpthis_menu_show_row(morpthis_widget_t *list, int row, const morpthis_menu_item_t *items,
+							int count, morpthis_menu_cb cb, void *user) {
+	(void)list;
+	(void)row;
+	(void)items;
+	(void)count;
+	(void)cb;
+	(void)user;
+	return false;
+}
+
+void morpthis_menu_close(void) {}
+
 morpthis_widget_t *morpthis_canvas_create(morpthis_screen_t *screen, int width, int height) {
 	if (width <= 0 || height <= 0) {
 		errno = EINVAL;
@@ -438,6 +463,13 @@ void morpthis_slider_set_value(morpthis_widget_t *slider, int value) {
 
 int morpthis_slider_value(const morpthis_widget_t *slider) {
 	return slider && slider->kind == HOST_WIDGET_SLIDER ? slider->value : 0;
+}
+
+void morpthis_slider_set_release_cb(morpthis_widget_t *slider, morpthis_value_cb cb, void *user) {
+	// The host runner has no drag input; there is never a release to report.
+	(void)slider;
+	(void)cb;
+	(void)user;
 }
 
 void morpthis_toast(const char *text) {

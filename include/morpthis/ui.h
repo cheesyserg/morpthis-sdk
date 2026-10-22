@@ -184,10 +184,44 @@ void morpthis_list_set_select_cb(morpthis_widget_t *list, morpthis_index_cb cb, 
 void morpthis_slider_set_value(morpthis_widget_t *slider, int value);
 int morpthis_slider_value(const morpthis_widget_t *slider);
 
+// Called when the user lifts a finger from the slider, and when the press is
+// lost, with the final value. A seek bar uses it: the value callback runs
+// continuously while the finger moves, and the release is the moment worth
+// acting on. Programmatic morpthis_slider_set_value() calls do not fire it.
+void morpthis_slider_set_release_cb(morpthis_widget_t *slider, morpthis_value_cb cb, void *user);
+
 // Image widgets: replace the picture. The path is resolved like an fs read:
 // the app's data folder first, then the package. That is what lets an app
-// download a cover into merp_data/<id>/ and show it. The old pixels are freed.
+// download a cover into its data folder and show it. The old pixels are freed.
 void morpthis_image_set_source(morpthis_widget_t *image, const char *relative_path);
+
+// Menus. The player's popover: a compact modal card next to an anchor, with the
+// page dimmed behind it and the current choice ticked. One menu is open at a
+// time; showing another replaces it, and a tap outside closes it.
+//
+// morpthis_menu_show() anchors to a widget, typically the button that opened
+// it. morpthis_menu_show_row() anchors to a row of a list, which is what a
+// settings page uses so the menu appears next to the row the user tapped. Both
+// copy the labels before returning and return false when the player cannot show
+// a menu (the host runtime has no display and always returns false).
+//
+// The callback runs on the GUI thread after the menu has closed. Picking an
+// item calls it with that index; a tap outside, or morpthis_menu_close(), does
+// not call it.
+#define MORPTHIS_MENU_MAX 7
+
+typedef struct {
+	const char *label;
+	bool checked; // draws the tick; use it for the current choice
+} morpthis_menu_item_t;
+
+typedef void (*morpthis_menu_cb)(int index, void *user);
+
+bool morpthis_menu_show(morpthis_widget_t *anchor, const morpthis_menu_item_t *items, int count,
+						morpthis_menu_cb cb, void *user);
+bool morpthis_menu_show_row(morpthis_widget_t *list, int row, const morpthis_menu_item_t *items,
+							int count, morpthis_menu_cb cb, void *user);
+void morpthis_menu_close(void);
 
 // A one-line message in the player's toast area. Copied.
 void morpthis_toast(const char *text);

@@ -119,14 +119,16 @@ On the card:
   Apps/
     pkgmerps/
       calculator.pkgmerp
-  merp_data/
-    calculator/        the app's writable folder
+    merp_data/
+      calculator/        the app's writable folder
 ```
 
 The package name is the app id and carries no version: exactly one package per
 app, and replacing the file is the update. The version stays in `app.json` and
 the release tag. The data folder is separate so an update can replace the
-package without disturbing saves, settings or downloaded content.
+package without disturbing saves, settings or downloaded content. A card from
+before the move kept `merp_data/` at the card root; the player moves that tree
+under `Apps/` on the first scan or launch.
 
 ## CI
 

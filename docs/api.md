@@ -34,8 +34,9 @@ adds `morpthis_audio_open_ex`, `morpthis_audio_write_pcm`,
 `morpthis_audio_set_playing`, `morpthis_audio_set_track`,
 `morpthis_app_background`, `morpthis_app_back_handled`, the player-styled icon
 buttons and text size/dim/align calls, the full-height screen,
-`morpthis_image_set_source` and the control-centre `NOW_PLAYING` button; the SDK
-version is 1.1.0 and the ABI list is `abi/morpthis-api-2.txt`.
+`morpthis_image_set_source`, the popover menus and the control-centre
+`NOW_PLAYING` button; the SDK version is 1.1.0 and the ABI list is
+`abi/morpthis-api-2.txt`.
 
 An app with threads, a network connection or the raw audio output should also
 export an optional shutdown hook:
@@ -132,12 +133,18 @@ Coordinates are pixels, origin top-left. Use `morpthis_ui_width()` and
 | `morpthis_list_set_playing` | Accent bar on one row, or -1 to clear. |
 | `morpthis_list_set_select_cb` | `(widget, index, user)`. |
 | `morpthis_slider_set_value/value` | Clamped to the creation range. |
+| `morpthis_slider_set_release_cb` | Final value when the finger lifts; what a seek bar acts on. |
 | `morpthis_image_set_source(image, path)` | Re-resolves like an fs read, so a downloaded picture works. |
+| `morpthis_menu_show(anchor, items, count, cb, user)` | The player's popover next to a widget. |
+| `morpthis_menu_show_row(list, row, items, count, cb, user)` | The same, anchored to a list row. |
+| `morpthis_menu_close()` | Closes the open menu without calling back. |
 | `morpthis_toast(text)` | One line in the player's toast area. |
 
 Buttons take `morpthis_click_cb(widget, user)`. Sliders fire their value
 callback when the user moves them and when `morpthis_slider_set_value()` is
-called. An image path is relative to the package root; the player decodes it on
+called. A seek bar wants the release callback instead of acting on every move:
+it runs once, when the finger lifts (or the press is lost), with the final
+value. An image path is relative to the package root; the player decodes it on
 the GUI thread at creation and whenever its size changes, so it is for icons and
 small pictures, not a full-screen photograph. `morpthis_image_set_source()`
 replaces the picture later and resolves it through the same tree as a read, so
@@ -150,6 +157,16 @@ player's. `morpthis_screen_add_corner_button()` adds one app action to the
 heading row, to the left of the player's own background button; a full screen
 has no heading row and returns NULL. A text size is one of the player's fonts,
 not a free value, and a dim label follows a theme change.
+
+`morpthis_menu_show()` is the player's popover: a compact modal card beside an
+anchor with the page dimmed behind it. A track's menu is a choice list: pass
+`checked = true` on the item that is currently in force and the player draws the
+tick, exactly as its own quality and theme menus do. `morpthis_menu_show_row()`
+anchors to a row of an SDK list, which is what a settings page wants, so the
+menu opens next to the row the user tapped rather than at the page edge. Labels
+are copied when the call returns, and the callback runs after the menu has
+closed. A tap outside or `morpthis_menu_close()` closes it without a callback.
+One menu is open at a time, and the player closes it if the app unloads.
 
 Rotation is for images and turns around the widget's centre; the box keeps its
 size, so a turned picture may draw outside it. Opacity and `raise` are what an
@@ -237,8 +254,12 @@ latency asked of the DAC; `0` uses the player's deep frame-based depth (about
 with 32 bits for anything deeper than 16; a device that cannot take S32 is
 retried at 16 by the app, as local playback does.
 
-`morpthis_audio_set_playing()` is only the indicator. Call it when pause or
-resume takes effect, from any thread; closing the output clears it.
+`morpthis_audio_set_playing()` is the indicator and the power hold. While it
+is true the player keeps the device awake with the screen off, exactly as it
+does for a local track, and keeps Wi-Fi up because an app's output is usually a
+stream; the screen still turns off on its own idle timer. Pausing releases the
+hold and lets standby proceed. Call it when pause or resume takes effect, from
+any thread; closing the output clears it.
 
 `morpthis_audio_set_track()` is what makes an app's playback visible outside its
 own screens. The player copies the title, artist, album and duration and shows
@@ -272,7 +293,7 @@ behind.
 | Call | Notes |
 | --- | --- |
 | `morpthis_fs_app_folder()` | The package root, read-only. |
-| `morpthis_fs_data_folder()` | The writable folder, `merp_data/<id>` on the card. |
+| `morpthis_fs_data_folder()` | The writable folder, `Apps/merp_data/<id>` on the card. |
 | `morpthis_fs_card_root()` | The card root. All three are absolute, owned by the player. |
 | `morpthis_fs_open(path, mode)` | Modes: read, write, append, read/write. |
 | `morpthis_fs_read/write` | Return bytes transferred. |

@@ -74,8 +74,8 @@ static void set_card_root(void) {
 	}
 }
 
-// The writable folder. On the device this is <card>/merp_data/<id>; the host
-// runner keeps its old behaviour -- the app folder -- unless the test asks
+// The writable folder. On the device this is <card>/Apps/merp_data/<id>; the
+// host runner keeps its old behaviour -- the app folder -- unless the test asks
 // for a separate one with MORPTHIS_APP_DATA.
 static void set_data_folder(void) {
 	const char *env = getenv("MORPTHIS_APP_DATA");
