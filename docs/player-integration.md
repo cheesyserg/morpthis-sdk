@@ -255,15 +255,32 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
   power hold. `morpthis_audio_set_track()` publishes the track the control
   centre's card shows; the player copies it under its own lock because the app
   may publish from its mixer thread. Closing the output clears both.
-- `morpthis_system_hold_awake()` is the only app-side standby and Wi-Fi hold.
-  Keep it in `sdk_system.c` as an app-owned flag, expose it through the app
-  host, and have the power timer treat that flag as activity. Audio output is
-  not a hold: a game can write silence continuously for its mixer and still
-  let the device suspend. The host clears the flag in `sdk_system_app_reset()`.
-- Before suspend, the app audio bridge closes a non-playing output (a paused
-  Subsonic, a game mixer). A mixer thread already inside a write parks and is
-  woken by `apphost_resume_after_suspend()`; it reopens the same terms and
-  continues. A paused music app reopens on its next `set_playing(true)`.
+- `power.h` owns the only app-side power holds. Keep the mask, deadline and
+  event callback in `sdk_system.c`, under a lock, because a mixer or download
+  worker may set a hold while the power timer reads it. AWAKE blocks standby;
+  SCREEN blocks idle blanking; NETWORK blocks Wi-Fi parking and implies AWAKE.
+  Audio output is not a hold: a game can write silence continuously for its
+  mixer and still let the device suspend. `sdk_system_tick()` expires timed
+  holds from the power timer, and `sdk_system_app_reset()` clears the mask,
+  deadline and callback at teardown, including after a force close.
+- The app host exposes AWAKE/NETWORK through `apphost_awake_hold()` and
+  `apphost_network_hold()`, applies SCREEN through `power_hold_screen_for_app()`,
+  and calls `apphost_power_tick()` before each power decision. The app screen
+  hold has a flag of its own; sharing `power_hold_screen_on()` with player pages
+  lets either side release the other's hold. A timed hold is thus enforced by
+  the player, not by an app thread that may be blocked.
+- `apphost_suspend_prepare()` sends `MORPTHIS_POWER_SUSPENDING` before the audio
+  handoff, then closes a non-playing output (a paused Subsonic, a game mixer).
+  `apphost_resume_after_suspend()` sends `MORPTHIS_POWER_RESUMED` before waking
+  parked writers, which reopen the same terms and continue. A paused music app
+  reopens on its next `set_playing(true)`. The callback is remembered across the
+  suspend, so a replacement registered meanwhile is not sent an unpaired
+  `RESUMED`.
+- `power_screen_off()` and `power_screen_on()` send `MORPTHIS_POWER_SCREEN_OFF`
+  and `_ON` at the end of the transition, after rendering is paused or the
+  repaint is complete. A screen-off callback must not draw. The callbacks run on
+  the GUI thread and must not block; they cannot veto a suspend that has already
+  started.
 - When the app's output is active, the player's own transport must not touch the
   DAC. The local player calls `apphost_release_audio()` before it starts a track,
   which closes the app's output; the app sees a short write and stops its stream.

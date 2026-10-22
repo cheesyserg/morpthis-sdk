@@ -178,6 +178,11 @@ morpthis_playback_set_mode
 morpthis_playback_set_speed
 morpthis_playback_stop
 morpthis_playback_toggle
+morpthis_power_holds
+morpthis_power_release_all
+morpthis_power_set_event_cb
+morpthis_power_set_holds
+morpthis_power_set_holds_for
 morpthis_progress_create
 morpthis_progress_set_range
 morpthis_progress_set_value

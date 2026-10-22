@@ -105,7 +105,7 @@ size_t morpthis_audio_write(const int16_t *pcm, size_t frames);
 // This is the indicator, not the standby hold: it drives the status-bar glyph
 // and the LED, and a source that stops writing for five seconds is treated as
 // stopped even if the flag is still true. Keeping the device awake is an
-// explicit decision made with morpthis_system_hold_awake() in system.h; raw
+// explicit decision made with morpthis_power_set_holds() in power.h; raw
 // PCM output and these flags do not imply it. The screen still turns off on its
 // own idle timer. Safe to call from any thread, including the app's mixer and
 // the GUI thread; it is a no-op when no output is open. Closing the output

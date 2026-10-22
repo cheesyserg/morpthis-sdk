@@ -13,6 +13,7 @@
 #include "morpthis/library.h"
 #include "morpthis/fs.h"
 #include "morpthis/system.h"
+#include "morpthis/power.h"
 #include "morpthis/wireless.h"
 #include "morpthis/net.h"
 #include "morpthis/log.h"

@@ -10,9 +10,9 @@ Legend: `[x]` done, `[ ]` still to do.
 ## 1. Versioning and ABI
 
 - [x] `MORPTHIS_APP_API_VERSION` = **3** (`include/morpthis/version.h`)
-- [x] SDK version = **1.2.1**
+- [x] SDK version = **1.2.2**
 - [x] API 2 symbols retained; API 2 apps still load on an API 3 player
-- [x] `abi/morpthis-api-3.txt` — **296** symbols, sorted and unique
+- [x] `abi/morpthis-api-3.txt` — **301** symbols, sorted and unique
 - [x] `tools/check-exports.sh` uses the API 3 list
 - [x] SDK CI contract job checks the API 3 list
 - [x] Player version script (`morpthis.ld`) still exports `morpthis_*`
@@ -38,8 +38,7 @@ Legend: `[x]` done, `[ ]` still to do.
   - [x] search across tracks/albums/artists
   - [x] favourite toggle/query, play count, record play
   - [x] playlist list/exists/create/drop/rename/append/remove/contains/move/count/page
-- [x] `system.h` — device and settings, including the explicit
-      `morpthis_system_hold_awake()` power hold
+- [x] `system.h` — device and settings
   - [x] device name, OS/build version, serial, DAC
   - [x] card present/total/used/free/percent
   - [x] battery percent, charging, USB VBUS, mass-storage active
@@ -48,6 +47,20 @@ Legend: `[x]` done, `[ ]` still to do.
   - [x] screenshot request
   - [x] power off / reboot
   - [x] config get string/int/bool, set, save
+- [x] `power.h` — app power management
+  - [x] independent AWAKE / SCREEN / NETWORK hold bits
+  - [x] app SCREEN hold has its own flag, separate from player page/view holds
+  - [x] holds survive while the app is backgrounded
+  - [x] replace, release-all and query the app's hold set
+  - [x] timed holds (`set_holds_for`, timeout 0 = indefinite)
+  - [x] player-enforced expiry on the power tick
+  - [x] single-bit `hold_screen()`/`hold_awake()` changes do not cancel a timed set
+  - [x] suspend/resume event callback, GUI thread, cleared at teardown
+  - [x] RESUME is paired with the callback that received SUSPEND
+  - [x] screen-on/screen-off events at the end of the panel transition
+  - [x] teardown clears holds, deadline and callback
+  - [x] NETWORK implies AWAKE and keeps Wi-Fi from parking
+  - [x] no hold is inferred from opening or writing the DAC
 - [x] `wireless.h` — both radios
   - [x] Wi-Fi available/enabled/set/busy, status, connected, scan + serial + network list
   - [x] Wi-Fi connect/hidden/disconnect/forget, take result, last failure/op kind
@@ -152,8 +165,13 @@ Legend: `[x]` done, `[ ]` still to do.
 
 - [x] `sdk_playback.c` — queue, transport, metadata, cover, change timer
 - [x] `sdk_library.c` — lists, search, favourites, playlists, scans
-- [x] `sdk_system.c` — info/storage/battery/screen/clock/USB/power/config,
-      screen-hold cleanup
+- [x] `sdk_system.c` — info/storage/battery/screen/clock/USB/config,
+      locked power-hold mask, separate app screen hold, timed expiry,
+      suspend/resume/screen callbacks and teardown cleanup
+- [x] `sdk_audio.c` — suspends non-playing app PCM, parks mixer writers and
+      reopens them after the wake
+- [x] `apphost.c` — awake/network hold getters, power tick, GUI-thread suspend,
+      resume and screen-state notifications
 - [x] `sdk_wireless.c` — Wi-Fi and Bluetooth wrappers
 - [x] `sdk_net.c` — HTTP/TLS response lifetime and error text
 - [x] `sdk_fs.c` — absolute-path calls and directory walk
@@ -163,13 +181,15 @@ Legend: `[x]` done, `[ ]` still to do.
       row/text input/QR/roller/timer/toast/modal/style/text-layout
 - [x] `apphost.c` — callbacks/chrome/timers/holds cleaned up before `dlclose`
 - [x] `keyboard.c/.h` — `keyboard_destroy()` (needed by repeatable modals)
-- [x] `power.c/.h` — extracted `power_reboot()` shared with the power menu
+- [x] `power.c/.h` — extracted `power_reboot()` shared with the power menu;
+      separate app screen hold; screen on/off notifications
 
 ## 6. Host runtime
 
 - [x] `src/host/playback.c` — in-memory queue and state
 - [x] `src/host/library.c` — empty/false answers
 - [x] `src/host/system.c` — benign status, no-op controls, config fallbacks
+- [x] `src/host/power.c` — hold-set storage and no-op suspend events
 - [x] `src/host/wireless.c` — absent radios
 - [x] `src/host/net.c` — clean failure + URL encoding
 - [x] `src/host/fs.c` — absolute calls and directory walk
@@ -180,8 +200,11 @@ Legend: `[x]` done, `[ ]` still to do.
 ## 7. Documentation and CI
 
 - [x] `README.md` updated to API 3
-- [x] `docs/api.md` documents every new module and the full widget set
-- [x] `docs/player-integration.md` points at `abi/morpthis-api-3.txt`
+- [x] `docs/api.md` documents every new module, the full widget set and the
+      power holds/events
+- [x] `docs/player-integration.md` points at `abi/morpthis-api-3.txt` and
+      describes hold ownership, deadlines, the suspend handoff, the separate
+      screen hold and screen events
 - [x] player `docs/app-sdk.md` describes API 3 and `min_player: 3`
 - [x] app authoring notes mention API 3 requirements
 - [x] CI symbol-list check updated
@@ -191,9 +214,13 @@ Legend: `[x]` done, `[ ]` still to do.
 
 - [x] `make test` in `morpthis-sdk` (host runtime + samples)
 - [x] `make -C tests test` in the player
-- [x] `gcc -fsyntax-only -Wall` over every changed player source
-- [x] host library exports match `abi/morpthis-api-3.txt`
+- [x] Subsonic host `test` and `test-integration` (HTTP and HTTPS)
+- [x] `gcc -fsyntax-only -Wall` over the changed app-host, SDK bridge,
+      audio and USB sources (LVGL stub; `power.c` reviewed by hand because the
+      submodule has no LVGL source here)
+- [x] host library exports match `abi/morpthis-api-3.txt` exactly (301 symbols)
 - [x] every API 3 symbol has a player definition
+- [x] `abi/morpthis-api-3.txt` sorted and unique
 - [x] host timer smoke test (period, fire, self-delete)
 - [x] `git diff --check` clean (CRLF notices only)
 
@@ -205,6 +232,15 @@ Legend: `[x]` done, `[ ]` still to do.
 - [ ] Smoke-test: launch an app, local playback from the SDK, library list,
       seek, EQ, Wi-Fi/Bluetooth status, HTTP request, absolute fs read/write,
       switch/progress/spinner/container/settings row/text prompt/QR/roller/arc
+- [ ] Hold AWAKE from a test app; verify standby is skipped and the log names
+      the hold, while a game with a silent mixer still suspends
+- [ ] Hold NETWORK with no audio; verify Wi-Fi stays associated and the device
+      does not suspend
+- [ ] Hold SCREEN while a player page also holds the screen, then close each
+      in turn; verify neither release drops the other hold
+- [ ] Set a timed hold and verify it expires within one 250 ms power tick
+- [ ] Verify SUSPENDING/RESUMED and SCREEN_OFF/SCREEN_ON arrive on the GUI
+      thread in that order, including after a failed suspend attempt
 - [ ] Pull the SD card mid-playback; verify the player recovers cleanly
 - [ ] Measure free RAM with a representative app using the new widgets
 

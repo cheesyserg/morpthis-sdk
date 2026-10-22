@@ -15,7 +15,8 @@ extern "C" {
 // These are the calls the local Settings and status bar use. An app may use
 // them to show the same information or to change the same things; nothing here
 // is sandboxed. Powering off and rebooting are deliberately in this header and
-// do exactly what the power menu does. All calls run on the GUI thread.
+// do exactly what the power menu does. All calls run on the GUI thread unless
+// their comment says otherwise.
 
 #define MORPTHIS_DEVICE_NAME_MAX 64
 #define MORPTHIS_VERSION_MAX 32
@@ -54,7 +55,9 @@ bool morpthis_system_mass_storage_active(void);
 // clamps to the player's 5 % floor and persists the value like the Settings
 // slider. Call it when a drag ends, not on every pixel: each call writes the
 // config. hold_screen() keeps the idle timer from blanking the panel, for a
-// page the user is expected to read before touching again.
+// page the user is expected to read before touching again. It is independent
+// of the player's own holds and safe from any thread. The combined and timed
+// form of this and the other power holds is in power.h.
 bool morpthis_system_screen_is_on(void);
 void morpthis_system_screen_on(void);
 void morpthis_system_screen_off(void);
@@ -63,15 +66,11 @@ int morpthis_system_brightness(void);
 bool morpthis_system_set_brightness(int percent);
 void morpthis_system_hold_screen(bool hold);
 
-// Keeps the device from entering standby while true. The screen may still turn
-// itself off; this is the SoC power hold, not a screen hold. It is the explicit
-// way an app says "I am doing something that must keep running": a music app
-// while a track plays, for example. Raw PCM output does not imply it, so a game
-// mixer that keeps the DAC fed with silence cannot prevent standby by accident.
-// The player also treats a hold as network use, since the usual holder is a
-// streaming player and parking Wi-Fi mid-track would end it. Safe from any
-// thread, including a shutdown worker; clear it on pause or stop. The player
-// clears it automatically when the app is torn down.
+// A single-bit convenience for morpthis_power_set_holds() in power.h. It keeps
+// the device out of standby while true; the screen may still turn off. Raw PCM
+// output does not imply it. For a streaming app, use the power.h NETWORK bit
+// as well so Wi-Fi is not parked. Safe from any thread; clear it on pause or
+// stop. The player clears it automatically when the app is torn down.
 void morpthis_system_hold_awake(bool hold);
 
 // Wall clock, seconds since the epoch. set_time() writes the RTC as well.

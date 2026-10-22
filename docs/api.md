@@ -42,11 +42,12 @@ buttons and text size/dim/align calls, the full-height screen,
 API 3 adds the player's own services: local playback and queue control
 (`playback.h`), the 10-band equalizer (`audio.h`), the music library,
 favourites and playlists (`library.h`), the HTTP/TLS client (`net.h`), device
-status, brightness, the clock, USB, power, the explicit `hold_awake()` power
-hold and the settings store (`system.h`),
+status, brightness, the clock, USB and the settings store (`system.h`), the
+independent awake/screen/network power holds, timed expiry and
+suspend/screen notifications (`power.h`),
 Wi-Fi and Bluetooth (`wireless.h`), absolute-path file access and directory
 walks (`fs.h`), theme/dialog/text-entry UI (`ui.h`) and
-`morpthis_app_is_background()`. The SDK version is 1.2.1 and the ABI list is
+`morpthis_app_is_background()`. The SDK version is 1.2.2 and the ABI list is
 `abi/morpthis-api-3.txt`.
 
 An app with threads, a network connection or the raw audio output should also
@@ -315,7 +316,8 @@ rather than playing out the deep buffer (over Bluetooth the transport's own
 buffer is the remaining tail). A source that stops writing for five seconds
 reads as stopped even if the flag is still true, so the LED follows the actual
 output. This call does **not** keep the device out of standby; that is the
-explicit `morpthis_system_hold_awake()` call in `system.h`. The player may also
+explicit `morpthis_power_set_holds(MORPTHIS_POWER_AWAKE)` call in `power.h`
+(and `MORPTHIS_POWER_NETWORK` for a stream). The player may also
 close a paused output before standby; `set_playing(true)` or the next write
 reopens it with the same terms, so resuming after the wake needs no special
 case. Call it when pause or resume takes effect, from any thread; closing the
@@ -415,14 +417,47 @@ DAC; `storage()` gives the card's usage. `battery_percent()` returns -1 when it
 cannot be read. `screen_is_on/on/off/toggle`, `brightness()` (percent) and
 `set_brightness()` (clamped to the player's 5 % floor and persisted) are the
 Screen settings. `hold_screen()` keeps the idle timer from blanking the panel;
-`hold_awake()` keeps the device out of standby while the screen may still turn
-itself off. The latter is the explicit app power hold: opening the DAC or
-writing PCM does not take it, which is what keeps a game's silent mixer from
-defeating standby. `time()`/`set_time()` use the wall clock and RTC. `screenshot()` is the same
+`hold_awake()` is the single-bit standby hold. The combined and timed forms,
+and the NETWORK bit, are in `power.h`. Opening the DAC or writing PCM does not
+take a hold, which is what keeps a game's silent mixer from defeating standby.
+`time()`/`set_time()` use the wall clock and RTC. `screenshot()` is the same
 asynchronous capture as the volume-up + power gesture. `poweroff()` and
 `reboot()` do not return. The config calls read and write the player's own
 `/usr/data/device_config.ini`; the setters only touch memory until
 `morpthis_config_save()`.
+
+## power.h
+
+Power holds are a mask the loaded app owns:
+
+| Bit | Effect |
+| --- | --- |
+| `MORPTHIS_POWER_AWAKE` | No standby-to-RAM while held. The screen may still turn off. |
+| `MORPTHIS_POWER_SCREEN` | The idle timer does not blank the panel. It is separate from the player's own holds. |
+| `MORPTHIS_POWER_NETWORK` | Wi-Fi is not parked. It also implies AWAKE. A connected Bluetooth link already counts as in use. |
+
+`morpthis_power_set_holds()` replaces the set; `morpthis_power_set_holds_for()`
+adds an expiry, so an app that dies cannot leave the device awake forever. The
+player processes the deadline on its quarter-second power tick. The holds
+survive while the app is in the background, are cleared when it is torn down,
+and `morpthis_power_holds()` reports the current set. `hold_screen()` and
+`hold_awake()` change one bit without cancelling a timed deadline; use
+`set_holds_for(..., 0)` to make a timed set indefinite.
+
+`morpthis_power_set_event_cb()` registers one callback for power state:
+
+| Event | When |
+| --- | --- |
+| `MORPTHIS_POWER_SUSPENDING` | A suspend has already been decided. A hold set now cannot veto it. |
+| `MORPTHIS_POWER_RESUMED` | After the wake, including after an attempt that failed. |
+| `MORPTHIS_POWER_SCREEN_OFF` | The panel and rendering timers are down. Do not draw. |
+| `MORPTHIS_POWER_SCREEN_ON` | The panel is back up and has been repainted. |
+
+All events run on the GUI thread and must return promptly without waiting for
+another thread. `RESUMED` is sent only to the callback that received
+`SUSPENDING`, so replacing the callback across a sleep does not produce an
+unpaired resume. `morpthis_system_screen_is_on()` is the current screen state
+at any time.
 
 ## wireless.h
 

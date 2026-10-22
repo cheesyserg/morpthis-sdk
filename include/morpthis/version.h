@@ -6,8 +6,8 @@
 // older API, and a player refuses an app built for a newer major API.
 #define MORPTHIS_SDK_VERSION_MAJOR 1
 #define MORPTHIS_SDK_VERSION_MINOR 2
-#define MORPTHIS_SDK_VERSION_PATCH 1
-#define MORPTHIS_SDK_VERSION_STRING "1.2.1"
+#define MORPTHIS_SDK_VERSION_PATCH 2
+#define MORPTHIS_SDK_VERSION_STRING "1.2.2"
 
 // The version of the plugin ABI. This is the number the player compares with
 // morpthis_app_api_version() before it calls the entry point.
@@ -18,8 +18,8 @@
 // 3 gives an app the player's own services instead of only its own surface:
 // local playback and queue control (playback.h), the equalizer, the music
 // library, favourites and playlists (library.h), the HTTP/TLS client (net.h),
-// device status, brightness, the clock, USB, the explicit hold-awake power
-// hold and the settings store (system.h),
+// device status, brightness, the clock, USB and the settings store (system.h),
+// the power-hold mask and suspend/screen notifications (power.h),
 // Wi-Fi and Bluetooth (wireless.h), absolute-path filesystem access and
 // directory walks (fs.h), the player's theme, status bar, modal dialogs, text
 // entry and full widget set (ui.h), and app background state
