@@ -249,12 +249,21 @@ All UI calls arrive on the GUI thread. Do not add locking around LVGL; assert
 - `morpthis_audio_set_playing()` updates the status glyph while the app holds
   the raw output, and clears it on pause after dropping the PCM queue and
   silencing the DAC. Bluetooth is the exception: bluealsa's transport is
-  released by a drop, so only its own buffer can be the tail there. The power
-  hold also requires writes: five seconds without a successful PCM write means
-  the source is no longer playing, whatever its flag says.
-  `morpthis_audio_set_track()` publishes the track the control centre's card
-  shows; the player copies it under its own lock because the app may publish
-  from its mixer thread. Closing the output clears both.
+  released by a drop, so only its own buffer can be the tail there. Five
+  seconds without a successful PCM write means the source is no longer
+  playing, whatever its flag says; this is the LED's activity test, not a
+  power hold. `morpthis_audio_set_track()` publishes the track the control
+  centre's card shows; the player copies it under its own lock because the app
+  may publish from its mixer thread. Closing the output clears both.
+- `morpthis_system_hold_awake()` is the only app-side standby and Wi-Fi hold.
+  Keep it in `sdk_system.c` as an app-owned flag, expose it through the app
+  host, and have the power timer treat that flag as activity. Audio output is
+  not a hold: a game can write silence continuously for its mixer and still
+  let the device suspend. The host clears the flag in `sdk_system_app_reset()`.
+- Before suspend, the app audio bridge closes a non-playing output (a paused
+  Subsonic, a game mixer). A mixer thread already inside a write parks and is
+  woken by `apphost_resume_after_suspend()`; it reopens the same terms and
+  continues. A paused music app reopens on its next `set_playing(true)`.
 - When the app's output is active, the player's own transport must not touch the
   DAC. The local player calls `apphost_release_audio()` before it starts a track,
   which closes the app's output; the app sees a short write and stops its stream.

@@ -10,9 +10,9 @@ Legend: `[x]` done, `[ ]` still to do.
 ## 1. Versioning and ABI
 
 - [x] `MORPTHIS_APP_API_VERSION` = **3** (`include/morpthis/version.h`)
-- [x] SDK version = **1.2.0**
+- [x] SDK version = **1.2.1**
 - [x] API 2 symbols retained; API 2 apps still load on an API 3 player
-- [x] `abi/morpthis-api-3.txt` — **295** symbols, sorted and unique
+- [x] `abi/morpthis-api-3.txt` — **296** symbols, sorted and unique
 - [x] `tools/check-exports.sh` uses the API 3 list
 - [x] SDK CI contract job checks the API 3 list
 - [x] Player version script (`morpthis.ld`) still exports `morpthis_*`
@@ -38,7 +38,8 @@ Legend: `[x]` done, `[ ]` still to do.
   - [x] search across tracks/albums/artists
   - [x] favourite toggle/query, play count, record play
   - [x] playlist list/exists/create/drop/rename/append/remove/contains/move/count/page
-- [x] `system.h` — device and settings
+- [x] `system.h` — device and settings, including the explicit
+      `morpthis_system_hold_awake()` power hold
   - [x] device name, OS/build version, serial, DAC
   - [x] card present/total/used/free/percent
   - [x] battery percent, charging, USB VBUS, mass-storage active

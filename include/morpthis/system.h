@@ -63,6 +63,17 @@ int morpthis_system_brightness(void);
 bool morpthis_system_set_brightness(int percent);
 void morpthis_system_hold_screen(bool hold);
 
+// Keeps the device from entering standby while true. The screen may still turn
+// itself off; this is the SoC power hold, not a screen hold. It is the explicit
+// way an app says "I am doing something that must keep running": a music app
+// while a track plays, for example. Raw PCM output does not imply it, so a game
+// mixer that keeps the DAC fed with silence cannot prevent standby by accident.
+// The player also treats a hold as network use, since the usual holder is a
+// streaming player and parking Wi-Fi mid-track would end it. Safe from any
+// thread, including a shutdown worker; clear it on pause or stop. The player
+// clears it automatically when the app is torn down.
+void morpthis_system_hold_awake(bool hold);
+
 // Wall clock, seconds since the epoch. set_time() writes the RTC as well.
 bool morpthis_system_time(int64_t *epoch_seconds);
 bool morpthis_system_set_time(int year, int month, int day, int hour, int minute);

@@ -211,6 +211,7 @@ morpthis_switch_set_on
 morpthis_system_battery_percent
 morpthis_system_brightness
 morpthis_system_charging
+morpthis_system_hold_awake
 morpthis_system_hold_screen
 morpthis_system_info
 morpthis_system_mass_storage_active

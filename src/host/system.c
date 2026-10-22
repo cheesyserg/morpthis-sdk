@@ -51,6 +51,7 @@ bool morpthis_system_set_brightness(int percent) {
 }
 
 void morpthis_system_hold_screen(bool hold) { (void)hold; }
+void morpthis_system_hold_awake(bool hold) { (void)hold; }
 
 bool morpthis_system_time(int64_t *epoch_seconds) {
 	if (!epoch_seconds) {
