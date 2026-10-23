@@ -262,9 +262,9 @@ sensible app-level equivalent:
 
 - LVGL's `lv_chart`, `lv_spangroup` and custom table layouts are replaced by
   canvas drawing and the container/text primitives.
-- The player's own service pages (Qobuz, Tidal, radio, podcasts, AirPlay, DLNA,
-  SonixLink) are not injectable; apps reach the same network through `net.h`
-  and the same audio device through `audio.h`/`playback.h`.
+- The player's own pages (AirPlay, DLNA, SonixLink, Wi-Fi transfer) are not
+  injectable; apps reach the same network through `net.h` and the same audio
+  device through `audio.h`/`playback.h`.
 - LVGL types and player internal headers are still not exposed across the ABI;
   the SDK wrappers are the contract. This keeps apps working across LVGL and
   player upgrades without recompiling against internal structs.
