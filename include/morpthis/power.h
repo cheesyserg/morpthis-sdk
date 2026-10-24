@@ -16,6 +16,10 @@ extern "C" {
 // background, and are cleared automatically when it is torn down, so an app
 // that crashes cannot leave one behind.
 //
+// Putting the app in the background releases a SCREEN hold, because the pages
+// it was keeping lit are hidden. AWAKE, NETWORK, a timed hold's deadline and
+// the event callback all stay: they describe work the app is still doing.
+//
 //   MORPTHIS_POWER_AWAKE    no standby-to-RAM while the hold is present
 //   MORPTHIS_POWER_SCREEN   the idle timer does not blank the panel
 //   MORPTHIS_POWER_NETWORK  the Wi-Fi radio is not parked, and the hold also
