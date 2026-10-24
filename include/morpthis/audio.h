@@ -87,6 +87,9 @@ void morpthis_audio_eq_reset(void);
 // written as 32-bit left-justified reaches it bit-perfect. A USB DAC is given
 // S32 when it accepts it. Open, write and close from one thread; a write blocks
 // at the rate the DAC plays.
+//
+// The player's volume is applied to these frames on the way out, including on
+// a device on the USB-C port: an app does not have to attenuate its own stream.
 bool morpthis_audio_open(int rate, int channels, int buffer_ms);
 bool morpthis_audio_open_ex(int rate, int channels, int bits, int buffer_ms);
 
